@@ -1,4 +1,4 @@
-package com.japanesehelper.ui.theme
+package com.japanesehelper.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
