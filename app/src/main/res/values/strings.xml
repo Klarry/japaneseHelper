@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">JapaneseHelper</string>
+    <string name="home_title">JLPT Vocabulary</string>
+    <string name="home_furigana_caption">furigana</string>
+    <string name="home_romaji_caption">romaji</string>
+    <string name="home_meaning_caption">meaning</string>
 </resources>

@@ -5,6 +5,9 @@ import com.japanesehelper.domain.model.RandomWord
 
 fun RandomWordDto.toDomain(): RandomWord {
     return RandomWord(
-        word = word
+        word = word,
+        furigana = furigana,
+        romaji = romaji,
+        meaning = meaning
     )
 }
