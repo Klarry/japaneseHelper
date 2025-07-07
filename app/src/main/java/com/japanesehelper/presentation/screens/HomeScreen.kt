@@ -40,7 +40,14 @@ import com.japanesehelper.presentation.viewmodel.VocabViewModel
 @Composable
 fun HomeScreen(navController: NavController) {
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        RandomWordCard(modifier = Modifier.padding(innerPadding))
+        Column(
+            modifier = Modifier.padding(innerPadding)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Header()
+            RandomWordCard()
+        }
     }
 }
 
@@ -79,66 +86,59 @@ fun RandomWordCard(
 ) {
     val randomWord by viewModel.randomWord.collectAsState()
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.TopCenter
     ) {
-        Header()
+        ElevatedCard(
+            onClick = { viewModel.getRandomWord() },
+            elevation = CardDefaults.elevatedCardElevation(
+                defaultElevation = 6.dp
+            ),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .padding(LocalAppPadding.current.default)
+                .fillMaxWidth()
 
-        Box(
-            contentAlignment = Alignment.TopCenter
         ) {
-            ElevatedCard(
-                onClick = { viewModel.getRandomWord() },
-                elevation = CardDefaults.elevatedCardElevation(
-                    defaultElevation = 6.dp
-                ),
-                shape = RoundedCornerShape(12.dp),
+
+            Column(
                 modifier = Modifier
                     .padding(LocalAppPadding.current.default)
                     .fillMaxWidth()
-
             ) {
-
-                Column(
-                    modifier = Modifier
-                        .padding(LocalAppPadding.current.default)
-                        .fillMaxWidth()
-                ) {
-                    randomWord?.word?.let {
-                        Text(
-                            text = it,
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
-                            textAlign = TextAlign.Center,
-                            style = TextStyle(
-                                fontSize = LocalAppFontSize.current.font70,
-                                shadow = Shadow(
-                                    color = Color.LightGray,
-                                    offset = Offset(5.0f, 10.0f),
-                                    blurRadius = 3f
-                                )
+                randomWord?.word?.let {
+                    Text(
+                        text = it,
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        textAlign = TextAlign.Center,
+                        style = TextStyle(
+                            fontSize = LocalAppFontSize.current.font70,
+                            shadow = Shadow(
+                                color = Color.LightGray,
+                                offset = Offset(5.0f, 10.0f),
+                                blurRadius = 3f
                             )
                         )
-                    }
+                    )
                 }
-
-                StyledWord(
-                    word = randomWord?.furigana.orEmpty(),
-                    caption = stringResource(R.string.home_furigana_caption)
-                )
-
-                StyledWord(
-                    word = randomWord?.romaji.orEmpty(),
-                    caption = stringResource(R.string.home_romaji_caption)
-                )
-
-                StyledWord(
-                    word = randomWord?.meaning.orEmpty(),
-                    caption = stringResource(R.string.home_meaning_caption),
-                    modifier = Modifier.padding(bottom = LocalAppPadding.current.defaultAndHalf),
-                )
             }
+
+            StyledWord(
+                word = randomWord?.furigana.orEmpty(),
+                caption = stringResource(R.string.home_furigana_caption)
+            )
+
+            StyledWord(
+                word = randomWord?.romaji.orEmpty(),
+                caption = stringResource(R.string.home_romaji_caption)
+            )
+
+            StyledWord(
+                word = randomWord?.meaning.orEmpty(),
+                caption = stringResource(R.string.home_meaning_caption),
+                modifier = Modifier.padding(bottom = LocalAppPadding.current.defaultAndHalf),
+            )
         }
     }
 }
