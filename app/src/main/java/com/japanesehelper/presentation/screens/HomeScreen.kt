@@ -1,24 +1,32 @@
 package com.japanesehelper.presentation.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -30,6 +38,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
 import com.japanesehelper.R
 import com.japanesehelper.presentation.theme.JapaneseHelperTheme
 import com.japanesehelper.presentation.theme.LocalAppFontSize
@@ -85,13 +95,16 @@ fun RandomWordCard(
     viewModel: VocabViewModel = hiltViewModel()
 ) {
     val randomWord by viewModel.randomWord.collectAsState()
+    val pictureLink by viewModel.pictureLink.collectAsState()
 
     Box(
         modifier = modifier,
         contentAlignment = Alignment.TopCenter
     ) {
         ElevatedCard(
-            onClick = { viewModel.getRandomWord() },
+            onClick = {
+                viewModel.getRandomWord()
+            },
             elevation = CardDefaults.elevatedCardElevation(
                 defaultElevation = 6.dp
             ),
@@ -122,6 +135,13 @@ fun RandomWordCard(
                         )
                     )
                 }
+            }
+
+            pictureLink?.let { link ->
+                ImageWithProgress(
+                    modifier = Modifier.padding(bottom = LocalAppPadding.current.default),
+                    url = link
+                )
             }
 
             StyledWord(
@@ -172,6 +192,46 @@ fun StyledWord(
             fontSize = LocalAppFontSize.current.font16,
         )
     )
+}
+
+@Composable
+fun ImageWithProgress(
+    url: String,
+    modifier: Modifier = Modifier
+) {
+    var isLoading by remember { mutableStateOf(true) }
+
+    Box(
+        modifier = modifier
+            .aspectRatio(16f / 9f),
+        contentAlignment = Alignment.Center
+    ) {
+        val painter = rememberAsyncImagePainter(
+            model = url,
+            onState = { state ->
+                isLoading = when(state) {
+                    is AsyncImagePainter.State.Loading -> true
+                    is AsyncImagePainter.State.Success -> false
+                    is AsyncImagePainter.State.Error -> false
+                    else -> false
+                }
+            }
+        )
+
+        Image(
+            painter = painter,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit
+        )
+
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                strokeWidth = 2.dp
+            )
+        }
+    }
 }
 
 @Preview(showBackground = true)

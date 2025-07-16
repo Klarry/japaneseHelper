@@ -1,6 +1,6 @@
 package com.japanesehelper.di
 
-import com.japanesehelper.data.remote.api.VocabApi
+import com.japanesehelper.data.remote.api.GoogleSearchApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -14,15 +14,15 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object NetworkModule {
+object GoogleNetworkModule {
 
-    private const val BASE_URL = "https://jlpt-vocab-api.vercel.app/"
+    private const val BASE_URL = "https://www.googleapis.com/"
 
     @Provides
     @Singleton
-    @Named("NetworkRetrofit")
-    fun provideNetworkRetrofit(
-        okHttpClient: OkHttpClient
+    @Named("GoogleRetrofit")
+    fun provideGoogleRetrofit(
+        @Named("GoogleOkHttp") okHttpClient: OkHttpClient
     ): Retrofit {
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
@@ -33,7 +33,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient() : OkHttpClient {
+    @Named("GoogleOkHttp")
+    fun provideGoogleOkHttpClient() : OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(
                 HttpLoggingInterceptor().apply {
@@ -45,7 +46,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideApi(@Named("NetworkRetrofit") retrofit: Retrofit): VocabApi {
-        return retrofit.create(VocabApi::class.java)
+    fun provideGoogleSearchApi(@Named("GoogleRetrofit") retrofit: Retrofit): GoogleSearchApi {
+        return retrofit.create(GoogleSearchApi::class.java)
     }
 }
