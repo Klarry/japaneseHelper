@@ -41,7 +41,8 @@ class VocabViewModel @Inject constructor(
                     meaning = randomWord.value?.meaning.orEmpty()
                 )
             } catch (e: Exception) {
-                _randomWord.value = RandomWord(word = "Error: ${e.message}")
+                _randomWord.value = RandomWord(word = "Error: ${ e.message }")
+                e.printStackTrace()
             }
         }
     }
