@@ -69,7 +69,7 @@ class VocabViewModelTest {
 
         viewModel.getSearchResult(apiKey = "", cx = "", meaning = "")
 
-        viewModel.pictureLink.test {
+        viewModel.pictureData.test {
             assertEquals(mockResult.result, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }

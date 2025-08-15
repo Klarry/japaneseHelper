@@ -1,0 +1,38 @@
+package com.japanesehelper.presentation.screens.homeScreen
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.NavController
+import com.japanesehelper.presentation.screens.homeScreen.components.Header
+import com.japanesehelper.presentation.screens.homeScreen.components.RandomWordCard
+import com.japanesehelper.presentation.theme.JapaneseHelperTheme
+
+@Composable
+fun HomeScreen(navController: NavController) {
+    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        Column(
+            modifier = Modifier.padding(innerPadding)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Header()
+            RandomWordCard()
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun RandomWordCardPreview() {
+    JapaneseHelperTheme {
+        Header()
+        RandomWordCard()
+    }
+}
