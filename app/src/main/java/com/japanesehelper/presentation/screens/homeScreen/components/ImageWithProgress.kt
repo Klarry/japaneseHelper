@@ -74,12 +74,7 @@ fun ImageWithProgress(
 
                 var isLoading by remember { mutableStateOf(false) }
 
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
-                    )
-                }
+                if (isLoading) { CircularProgressIndicator() }
 
                 val painter = rememberAsyncImagePainter(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -112,17 +107,22 @@ fun ImageWithProgress(
                     .aspectRatio(16f / 9f),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .fillMaxWidth(),
-                    strokeWidth = 2.dp,
-                )
+                CircularProgressIndicator()
             }
         }
 
         is PictureLimitExceeded -> Unit
     }
+}
+
+@Composable
+fun CircularProgressIndicator() {
+    CircularProgressIndicator(
+        modifier = Modifier
+            .size(24.dp)
+            .fillMaxWidth(),
+        strokeWidth = 2.dp,
+    )
 }
 
 @Preview(

@@ -55,7 +55,6 @@ fun RandomWordCard(
             modifier = Modifier
                 .padding(LocalAppPadding.current.default)
                 .fillMaxWidth()
-
         ) {
 
             Column(
