@@ -67,7 +67,7 @@ class VocabViewModelTest {
             searchRepository.getSearchResults(apiKey = "", cx = "", query = "")
         ).thenReturn(mockResult)
 
-        viewModel.getSearchResult(apiKey = "", cx = "", meaning = "")
+//        viewModel.getSearchResult(apiKey = "", cx = "", meaning = "")
 
         viewModel.pictureData.test {
             assertEquals(mockResult.result, awaitItem())

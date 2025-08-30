@@ -30,14 +30,16 @@ import com.japanesehelper.presentation.theme.JapaneseHelperTheme
 import com.japanesehelper.presentation.viewmodel.screendata.PictureError
 import com.japanesehelper.presentation.viewmodel.screendata.PictureLimitExceeded
 import com.japanesehelper.presentation.viewmodel.screendata.PictureLoading
-import com.japanesehelper.presentation.viewmodel.screendata.PictureScreenData
+import com.japanesehelper.presentation.viewmodel.screendata.PictureState
 import com.japanesehelper.presentation.viewmodel.screendata.PictureSuccess
+
+const val PIC_ASPECT_RATIO = 16f / 9f
 
 /**
  * Displays an image with a loading indicator or an error message
  * depending on the provided [data] state.
  *
- * Uses [PictureScreenData] to determine the UI state:
+ * Uses [PictureState] to determine the UI state:
  * - If the data is loading — shows a progress indicator.
  * - If loading is successful — displays the image.
  * - If an error occurs — shows an image placeholder.
@@ -47,7 +49,7 @@ import com.japanesehelper.presentation.viewmodel.screendata.PictureSuccess
  */
 @Composable
 fun ImageWithProgress(
-    data: PictureScreenData,
+    data: PictureState,
     modifier: Modifier = Modifier
 ) {
 
@@ -55,7 +57,7 @@ fun ImageWithProgress(
         is PictureError -> {
             Box(
                 modifier = modifier
-                    .aspectRatio(16f / 9f),
+                    .aspectRatio(PIC_ASPECT_RATIO),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
@@ -68,7 +70,7 @@ fun ImageWithProgress(
         is PictureSuccess -> {
             Box(
                 modifier = modifier
-                    .aspectRatio(16f / 9f),
+                    .aspectRatio(PIC_ASPECT_RATIO),
                 contentAlignment = Alignment.Center
             ) {
 
@@ -104,7 +106,7 @@ fun ImageWithProgress(
         is PictureLoading -> {
             Box(
                 modifier = modifier
-                    .aspectRatio(16f / 9f),
+                    .aspectRatio(PIC_ASPECT_RATIO),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator()

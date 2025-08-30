@@ -3,18 +3,19 @@ package com.japanesehelper.presentation.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.japanesehelper.domain.model.RandomWord
 import com.japanesehelper.domain.repository.GoogleSearchRepository
 import com.japanesehelper.domain.repository.VocabRepository
 import com.japanesehelper.presentation.viewmodel.VocabViewModel.HttpStatus.TOO_MANY_REQUESTS
+import com.japanesehelper.presentation.viewmodel.screendata.HomeState
 import com.japanesehelper.presentation.viewmodel.screendata.PictureError
 import com.japanesehelper.presentation.viewmodel.screendata.PictureLimitExceeded
 import com.japanesehelper.presentation.viewmodel.screendata.PictureLoading
-import com.japanesehelper.presentation.viewmodel.screendata.PictureScreenData
+import com.japanesehelper.presentation.viewmodel.screendata.PictureState
 import com.japanesehelper.presentation.viewmodel.screendata.PictureSuccess
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import javax.inject.Inject
@@ -29,55 +30,66 @@ class VocabViewModel @Inject constructor(
         const val TOO_MANY_REQUESTS = 429
     }
 
-    private val _randomWord = MutableStateFlow<RandomWord?>(null)
-    val randomWord = _randomWord.asStateFlow()
+    private val _homeState = MutableStateFlow(HomeState())
+    val homeState: StateFlow<HomeState> = _homeState
 
-    private val _pictureData = MutableStateFlow<PictureScreenData?>(null)
-    val pictureData = _pictureData.asStateFlow()
+    init { getCardData() }
 
-    init {
-        getRandomWord()
+    fun getCardData() {
+        viewModelScope.launch {
+            getRandomWord()?.join()
+
+
+        }
     }
 
-    fun getRandomWord() {
-        viewModelScope.launch {
+    suspend fun getRandomWord(): Job? {
+        return viewModelScope.launch {
             try {
-                _randomWord.value = vocabRepository.getRandomWord()
-            } catch (e: Exception) {
-                Log.d("getRandomWord", "Exception thrown: ${ e.message }, cause: ${ e.cause }, localizedMessage: ${ e.localizedMessage }")
+                _homeState.value = _homeState.value.copy(randomWord = vocabRepository.getRandomWord())
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                Log.d("getRandomWord",
+                    "Exception thrown: ${ e.message }, " +
+                        "cause: ${ e.cause }, " +
+                        "localizedMessage: ${ e.localizedMessage }"
+                )
                 e.printStackTrace()
             }
         }
     }
 
-    fun getPictureData(
+    suspend fun getPictureData(
         apiKey: String = "",
         cx: String = "",
-    ) {
-        if (apiKey.isEmpty() || cx.isEmpty()) return
+    ): Job? {
+        if (apiKey.isEmpty() || cx.isEmpty()) return null
 
-        _pictureData.value = PictureLoading()
+        _homeState.updatePicture(PictureLoading())
 
-        viewModelScope.launch {
+        return viewModelScope.launch {
             try {
                 val searchResult = getSearchResultAsync(
                     apiKey = apiKey,
                     cx = cx,
-                    meaning = randomWord.value?.meaning.orEmpty()
+                    meaning = _homeState.value.randomWord?.meaning.orEmpty()
                 )
-                _pictureData.value = PictureSuccess(searchResult)
-            } catch (e: Exception) {
+                _homeState.updatePicture(PictureSuccess(searchResult))
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 when (e) {
                     is HttpException -> {
                         if (e.code() == TOO_MANY_REQUESTS) {
-                            _pictureData.value = PictureLimitExceeded()
+                            _homeState.updatePicture(PictureLimitExceeded())
                         } else {
-                            _pictureData.value = PictureError(e.message.orEmpty())
+                            _homeState.updatePicture(PictureError(e.message.orEmpty()))
                         }
                     }
-                    else -> _pictureData.value = PictureError(e.message.orEmpty())
+                    else -> _homeState.updatePicture(PictureError(e.message.orEmpty()))
                 }
-                Log.d("getPictureData", "Exception thrown: ${ e.message }, cause: ${ e.cause }, localizedMessage: ${ e.localizedMessage }")
+                Log.d("getPictureData",
+                    "Exception thrown: ${ e.message }, " +
+                            "cause: ${ e.cause }, " +
+                            "localizedMessage: ${ e.localizedMessage }"
+                )
                 e.printStackTrace()
             }
         }
@@ -93,5 +105,9 @@ class VocabViewModel @Inject constructor(
             cx = cx,
             query = meaning
         )?.result
+    }
+
+    fun MutableStateFlow<HomeState>.updatePicture(newPicture: PictureState) {
+        this.value = this.value.copy(picture = newPicture)
     }
 }

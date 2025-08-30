@@ -1,8 +1,8 @@
+@file:Suppress("MagicNumber")
+
 package com.japanesehelper.presentation.theme
 
 import androidx.compose.ui.graphics.Color
-
-@Suppress("MagicNumber")
 
 val Purple80 = Color(0xFFD0BCFF)
 val PurpleGrey80 = Color(0xFFCCC2DC)

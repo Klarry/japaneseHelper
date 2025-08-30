@@ -23,7 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.japanesehelper.R
 import com.japanesehelper.presentation.theme.LocalAppFontSize
+import com.japanesehelper.presentation.theme.LocalAppOffset
 import com.japanesehelper.presentation.theme.LocalAppPadding
+import com.japanesehelper.presentation.theme.LocalAppRadius
 import com.japanesehelper.presentation.viewmodel.VocabViewModel
 
 /**
@@ -37,20 +39,15 @@ fun RandomWordCard(
     modifier: Modifier = Modifier,
     viewModel: VocabViewModel = hiltViewModel()
 ) {
-    val randomWord by viewModel.randomWord.collectAsState()
-    val pictureData by viewModel.pictureData.collectAsState()
+    val state by viewModel.homeState.collectAsState()
 
     Box(
         modifier = modifier,
         contentAlignment = Alignment.TopCenter
     ) {
         ElevatedCard(
-            onClick = {
-                viewModel.getRandomWord()
-            },
-            elevation = CardDefaults.elevatedCardElevation(
-                defaultElevation = 6.dp
-            ),
+            onClick = { viewModel.getCardData() },
+            elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
                 .padding(LocalAppPadding.current.default)
@@ -62,7 +59,7 @@ fun RandomWordCard(
                     .padding(LocalAppPadding.current.default)
                     .fillMaxWidth()
             ) {
-                randomWord?.word?.let {
+                state.randomWord?.word?.let {
                     Text(
                         text = it,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -71,34 +68,33 @@ fun RandomWordCard(
                             fontSize = LocalAppFontSize.current.font70,
                             shadow = Shadow(
                                 color = Color.LightGray,
-                                offset = Offset(5.0f, 10.0f),
-                                blurRadius = 3f
+                                offset = Offset(LocalAppOffset.current.spacing5, LocalAppOffset.current.spacing10),
+                                blurRadius = LocalAppRadius.current.radius3
                             )
                         )
                     )
                 }
             }
 
-            pictureData?.let { data ->
+            state.picture?.let { data ->
                 ImageWithProgress(
-                    modifier = Modifier
-                        .padding(bottom = LocalAppPadding.current.default),
+                    modifier = Modifier.padding(bottom = LocalAppPadding.current.default),
                     data = data
                 )
             }
 
             StyledWord(
-                word = randomWord?.furigana.orEmpty(),
+                word = state.randomWord?.furigana.orEmpty(),
                 caption = stringResource(R.string.home_furigana_caption)
             )
 
             StyledWord(
-                word = randomWord?.romaji.orEmpty(),
+                word = state.randomWord?.romaji.orEmpty(),
                 caption = stringResource(R.string.home_romaji_caption)
             )
 
             StyledWord(
-                word = randomWord?.meaning.orEmpty(),
+                word = state.randomWord?.meaning.orEmpty(),
                 caption = stringResource(R.string.home_meaning_caption),
                 modifier = Modifier.padding(bottom = LocalAppPadding.current.defaultAndHalf),
             )

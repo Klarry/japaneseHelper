@@ -14,6 +14,7 @@ import com.japanesehelper.presentation.screens.homeScreen.components.Header
 import com.japanesehelper.presentation.screens.homeScreen.components.RandomWordCard
 import com.japanesehelper.presentation.theme.JapaneseHelperTheme
 
+@Suppress("UnusedPrivateMember")
 @Composable
 fun HomeScreen(navController: NavController) {
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->

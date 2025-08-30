@@ -42,7 +42,9 @@ fun JapaneseHelperTheme(
 
     CompositionLocalProvider(
         LocalAppPadding provides Padding(),
-        LocalAppFontSize provides FontSize()
+        LocalAppFontSize provides FontSize(),
+        LocalAppOffset provides Offset(),
+        LocalAppRadius provides Radius()
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
