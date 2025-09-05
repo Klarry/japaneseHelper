@@ -47,6 +47,12 @@ class VocabViewModel @Inject constructor(
         }
     }
 
+    fun updateLevel(level: LevelState) {
+        viewModelScope.launch {
+            vocabRepository.updateJLPTLevel(level)
+        }
+    }
+
     private fun getJLPTLevel(): StateFlow<LevelState> {
         return vocabRepository.getJLPTLevel()
             .stateIn(
@@ -71,6 +77,7 @@ class VocabViewModel @Inject constructor(
         }
     }
 
+    @Suppress("UnusedPrivateMember")
     private fun getPictureData(
         apiKey: String = "",
         cx: String = "",

@@ -50,7 +50,6 @@ fun RandomWordCard(
             elevation = CardDefaults.elevatedCardElevation(defaultElevation = 6.dp),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
-                .padding(LocalAppPadding.current.default)
                 .fillMaxWidth()
         ) {
 

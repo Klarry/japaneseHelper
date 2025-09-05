@@ -4,4 +4,5 @@
     <string name="home_furigana_caption">furigana</string>
     <string name="home_romaji_caption">romaji</string>
     <string name="home_meaning_caption">meaning</string>
+    <string name="home_level_selection_caption">Select level</string>
 </resources>

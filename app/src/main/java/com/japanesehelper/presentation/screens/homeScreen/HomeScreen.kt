@@ -11,8 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavController
 import com.japanesehelper.presentation.screens.homeScreen.components.Header
+import com.japanesehelper.presentation.screens.homeScreen.components.LevelDropdownMenu
 import com.japanesehelper.presentation.screens.homeScreen.components.RandomWordCard
 import com.japanesehelper.presentation.theme.JapaneseHelperTheme
+import com.japanesehelper.presentation.theme.LocalAppPadding
 
 @Suppress("UnusedPrivateMember")
 @Composable
@@ -23,8 +25,11 @@ fun HomeScreen(navController: NavController) {
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            val modifier = Modifier.padding(horizontal = LocalAppPadding.current.default)
+
             Header()
-            RandomWordCard()
+            LevelDropdownMenu(modifier = modifier)
+            RandomWordCard(modifier = modifier)
         }
     }
 }
