@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.hilt)
     kotlin("kapt")
     alias(libs.plugins.detekt)
+    alias(libs.plugins.protobuf)
 }
 
 android {
@@ -47,7 +48,9 @@ android {
 }
 
 dependencies {
-
+    implementation(libs.datastore.core)
+    implementation(libs.protobuf.javalite)
+    implementation(libs.datastore.preferences)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -77,4 +80,19 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     testImplementation(kotlin("test"))
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${libs.versions.protobufJavaLite.get()}"
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                create("java") {
+                    option("lite")
+                }
+            }
+        }
+    }
 }

@@ -1,5 +1,7 @@
 package com.japanesehelper.di
 
+import androidx.datastore.core.DataStore
+import com.japanesehelper.android.datastore.VocabPreferences
 import com.japanesehelper.data.remote.api.GoogleSearchApi
 import com.japanesehelper.data.remote.api.VocabApi
 import com.japanesehelper.data.repository.GoogleSearchRepositoryImpl
@@ -20,8 +22,12 @@ class RepositoryModule {
     @Singleton
     fun provideVocabRepository(
         api: VocabApi,
+        dataStore: DataStore<VocabPreferences>
     ): VocabRepository {
-        return VocabRepositoryImpl(api)
+        return VocabRepositoryImpl(
+            vocabApi = api,
+            vocabDataStore = dataStore
+        )
     }
 
     @Provides

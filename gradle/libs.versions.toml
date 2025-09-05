@@ -1,5 +1,5 @@
 [versions]
-agp = "8.12.0"
+agp = "8.12.2"
 kotlin = "2.2.10"
 coreKtx = "1.17.0"
 junit = "4.13.2"
@@ -18,6 +18,9 @@ kotlinx-coroutines-test = "1.10.2"
 mockito-kotlin = "6.0.0"
 mockito-inline = "5.2.0"
 turbine = "1.2.1"
+datastore = "1.1.7"
+protobufPlugin = "0.9.4"
+protobufJavaLite = "3.25.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -38,6 +41,9 @@ hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hil
 hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+datastore-core = { module = "androidx.datastore:datastore", version.ref = "datastore" }
+protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobufJavaLite" }
 
 #testImplementation
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -56,3 +62,4 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version = "1.18.1" }
+protobuf = { id = "com.google.protobuf", version.ref = "protobufPlugin" }
