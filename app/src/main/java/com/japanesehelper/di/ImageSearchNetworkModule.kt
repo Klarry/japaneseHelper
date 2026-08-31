@@ -19,10 +19,14 @@ import javax.inject.Singleton
 object ImageSearchNetworkModule {
 
     private const val BASE_URL = "http://89.167.34.196:8000/"
+
+    // Backend search latency (Gemini + Google Image Search) is variable in practice -
+    // observed anywhere from ~12s up to and beyond 30s, which was timing out ~1 in 3-4 requests.
+    // Read/call timeouts carry a much larger margin to cover that variance.
     private const val CONNECT_TIMEOUT_SECONDS = 15L
     private const val WRITE_TIMEOUT_SECONDS = 15L
-    private const val READ_TIMEOUT_SECONDS = 30L
-    private const val CALL_TIMEOUT_SECONDS = 45L
+    private const val READ_TIMEOUT_SECONDS = 60L
+    private const val CALL_TIMEOUT_SECONDS = 90L
 
     private const val DEMO_LOG_TAG = "ImageSearch"
     private val DEMO_LOG_DIVIDER = "─".repeat(40)
