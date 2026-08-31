@@ -31,7 +31,7 @@ class VocabViewModel @Inject constructor(
 
     private companion object {
         const val STOP_TIMEOUT_MILLIS = 5_000L
-        
+
         const val DEMO_LOG_TAG = "ImageSearch"
         const val DEMO_LOG_VIA = "Gemini + Google Image Search"
         val DEMO_LOG_DIVIDER = "─".repeat(40)
