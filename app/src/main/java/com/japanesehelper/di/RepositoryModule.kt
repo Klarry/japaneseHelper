@@ -2,11 +2,11 @@ package com.japanesehelper.di
 
 import androidx.datastore.core.DataStore
 import com.japanesehelper.android.datastore.VocabPreferences
-import com.japanesehelper.data.remote.api.GoogleSearchApi
+import com.japanesehelper.data.remote.api.ImageSearchApi
 import com.japanesehelper.data.remote.api.VocabApi
-import com.japanesehelper.data.repository.GoogleSearchRepositoryImpl
+import com.japanesehelper.data.repository.ImageSearchRepositoryImpl
 import com.japanesehelper.data.repository.VocabRepositoryImpl
-import com.japanesehelper.domain.repository.GoogleSearchRepository
+import com.japanesehelper.domain.repository.ImageSearchRepository
 import com.japanesehelper.domain.repository.VocabRepository
 import dagger.Module
 import dagger.Provides
@@ -32,9 +32,9 @@ class RepositoryModule {
 
     @Provides
     @Singleton
-    fun provideGoogleSearchRepository(
-        api: GoogleSearchApi,
-    ): GoogleSearchRepository {
-        return GoogleSearchRepositoryImpl(api)
+    fun provideImageSearchRepository(
+        api: ImageSearchApi,
+    ): ImageSearchRepository {
+        return ImageSearchRepositoryImpl(api)
     }
 }

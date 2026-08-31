@@ -4,5 +4,5 @@ sealed class PictureState
 
 class PictureLoading : PictureState()
 class PictureError(val message: String) : PictureState()
-class PictureSuccess(val url: String?) : PictureState()
+class PictureSuccess(val imageBytes: ByteArray?) : PictureState()
 class PictureLimitExceeded : PictureState()

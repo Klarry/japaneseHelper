@@ -77,7 +77,9 @@ fun RandomWordCard(
 
             state.picture?.let { data ->
                 ImageWithProgress(
-                    modifier = Modifier.padding(bottom = LocalAppPadding.current.default),
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = LocalAppPadding.current.default),
                     data = data
                 )
             }

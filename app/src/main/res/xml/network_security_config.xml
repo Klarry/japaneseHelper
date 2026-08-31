@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- The image-search backend is served over plain HTTP from a fixed VPS IP. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">89.167.34.196</domain>
+    </domain-config>
+</network-security-config>

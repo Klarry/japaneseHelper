@@ -1,6 +1,6 @@
 package com.japanesehelper
 
-import com.japanesehelper.domain.repository.GoogleSearchRepository
+import com.japanesehelper.domain.repository.ImageSearchRepository
 import com.japanesehelper.domain.repository.VocabRepository
 import com.japanesehelper.presentation.viewmodel.VocabViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -15,12 +15,12 @@ class VocabViewModelTest {
     val coroutineRule = MainDispatcherRule()
 
     private val vocabRepository: VocabRepository = mock()
-    private val searchRepository: GoogleSearchRepository = mock()
+    private val imageSearchRepository: ImageSearchRepository = mock()
 
     private lateinit var viewModel: VocabViewModel
 
     @Before
     fun setup() {
-        viewModel = VocabViewModel(vocabRepository, searchRepository)
+        viewModel = VocabViewModel(vocabRepository, imageSearchRepository)
     }
 }

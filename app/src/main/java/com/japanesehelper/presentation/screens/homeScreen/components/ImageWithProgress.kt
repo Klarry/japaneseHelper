@@ -35,6 +35,8 @@ import com.japanesehelper.presentation.viewmodel.screendata.PictureSuccess
 
 const val PIC_ASPECT_RATIO = 16f / 9f
 
+private const val IMAGE_WIDTH_FRACTION = 0.7f
+
 /**
  * Displays an image with a loading indicator or an error message
  * depending on the provided [data] state.
@@ -57,6 +59,7 @@ fun ImageWithProgress(
         is PictureError -> {
             Box(
                 modifier = modifier
+                    .fillMaxWidth(IMAGE_WIDTH_FRACTION)
                     .aspectRatio(PIC_ASPECT_RATIO),
                 contentAlignment = Alignment.Center
             ) {
@@ -70,6 +73,7 @@ fun ImageWithProgress(
         is PictureSuccess -> {
             Box(
                 modifier = modifier
+                    .fillMaxWidth(IMAGE_WIDTH_FRACTION)
                     .aspectRatio(PIC_ASPECT_RATIO),
                 contentAlignment = Alignment.Center
             ) {
@@ -80,7 +84,7 @@ fun ImageWithProgress(
 
                 val painter = rememberAsyncImagePainter(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(data.url)
+                        .data(data.imageBytes)
                         .error(R.drawable.image_placeholder)
                         .build(),
                     onState = { state ->
@@ -106,6 +110,7 @@ fun ImageWithProgress(
         is PictureLoading -> {
             Box(
                 modifier = modifier
+                    .fillMaxWidth(IMAGE_WIDTH_FRACTION)
                     .aspectRatio(PIC_ASPECT_RATIO),
                 contentAlignment = Alignment.Center
             ) {
@@ -137,9 +142,7 @@ fun ImageWithProgressPreview() {
     JapaneseHelperTheme {
         ImageWithProgress(
             modifier = Modifier.background(Color.LightGray),
-            data = PictureSuccess(
-                url = "https://picsum.photos/200/300"
-            )
+            data = PictureLoading()
         )
     }
 }
