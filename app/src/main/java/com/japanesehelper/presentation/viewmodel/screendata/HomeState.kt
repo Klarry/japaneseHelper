@@ -5,5 +5,6 @@ import com.japanesehelper.domain.model.RandomWord
 data class HomeState(
     val randomWord: RandomWord? = null,
     val picture: PictureState? = null,
-    val levelState: LevelState? = null
+    val levelState: LevelState? = null,
+    val description: DescriptionState? = null
 )

@@ -1,6 +1,7 @@
 package com.japanesehelper.di
 
 import android.util.Log
+import com.japanesehelper.data.remote.api.DescriptionApi
 import com.japanesehelper.data.remote.api.ImageSearchApi
 import dagger.Module
 import dagger.Provides
@@ -86,6 +87,12 @@ object ImageSearchNetworkModule {
     @Singleton
     fun provideImageSearchApi(@Named("ImageSearchRetrofit") retrofit: Retrofit): ImageSearchApi {
         return retrofit.create(ImageSearchApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideDescriptionApi(@Named("ImageSearchRetrofit") retrofit: Retrofit): DescriptionApi {
+        return retrofit.create(DescriptionApi::class.java)
     }
 
     private fun formatBytesForDemoLog(bytes: Long): String {

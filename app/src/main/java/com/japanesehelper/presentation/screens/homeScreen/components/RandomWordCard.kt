@@ -97,8 +97,24 @@ fun RandomWordCard(
             StyledWord(
                 word = state.randomWord?.meaning.orEmpty(),
                 caption = stringResource(R.string.home_meaning_caption),
-                modifier = Modifier.padding(bottom = LocalAppPadding.current.defaultAndHalf),
+                modifier = if (state.description == null) {
+                    Modifier.padding(bottom = LocalAppPadding.current.defaultAndHalf)
+                } else {
+                    Modifier
+                }
             )
+
+            state.description?.let { description ->
+                DescriptionSection(
+                    state = description,
+                    modifier = Modifier
+                        .padding(horizontal = LocalAppPadding.current.defaultAndHalf)
+                        .padding(
+                            top = LocalAppPadding.current.default,
+                            bottom = LocalAppPadding.current.defaultAndHalf
+                        )
+                )
+            }
         }
     }
 }
