@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,7 +24,9 @@ fun HomeScreen(navController: NavController) {
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         Column(
             modifier = Modifier.padding(innerPadding)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = LocalAppPadding.current.default),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val modifier = Modifier.padding(horizontal = LocalAppPadding.current.default)

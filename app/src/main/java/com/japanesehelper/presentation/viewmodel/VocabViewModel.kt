@@ -3,6 +3,7 @@ package com.japanesehelper.presentation.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.japanesehelper.data.remote.DescriptionPrompts
 import com.japanesehelper.domain.repository.DescriptionRepository
 import com.japanesehelper.domain.repository.ImageSearchRepository
 import com.japanesehelper.domain.repository.VocabRepository
@@ -43,6 +44,8 @@ class VocabViewModel @Inject constructor(
         val DEMO_LOG_DIVIDER = "─".repeat(40)
 
         const val DEMO_LOG_TAG_DESCRIPTION = "ImageDescription"
+        const val DEMO_LOG_MODE_UNCONTROLLED = "UNCONTROLLED"
+        const val DEMO_LOG_MODE_CONTROLLED = "CONTROLLED"
     }
 
     private val _homeState = MutableStateFlow(HomeState())
@@ -144,14 +147,20 @@ class VocabViewModel @Inject constructor(
                 Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Word: $word")
                 Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Meaning: \"$meaning\"")
                 Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ POST /description")
+                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ LLM: ${DescriptionPrompts.PROVIDER}")
+                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Mode: $DEMO_LOG_MODE_UNCONTROLLED")
+                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Prompt: \"${DescriptionPrompts.uncontrolled(meaning).asLogLine()}\"")
+                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Mode: $DEMO_LOG_MODE_CONTROLLED")
+                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Prompt: \"${DescriptionPrompts.controlled(meaning).asLogLine()}\"")
+                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Constraints: ${DescriptionPrompts.CONSTRAINTS}")
 
                 val result = descriptionRepository.getDescription(meaning)
 
                 Log.d(DEMO_LOG_TAG_DESCRIPTION, "← 200 OK")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Mode: UNCONTROLLED")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "← Response: ${result.uncontrolled}")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Mode: CONTROLLED")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "← Response: ${result.controlled}")
+                Log.d(DEMO_LOG_TAG_DESCRIPTION, "← Mode: $DEMO_LOG_MODE_UNCONTROLLED")
+                Log.d(DEMO_LOG_TAG_DESCRIPTION, "← Response: ${result.uncontrolled.asLogLine()}")
+                Log.d(DEMO_LOG_TAG_DESCRIPTION, "← Mode: $DEMO_LOG_MODE_CONTROLLED")
+                Log.d(DEMO_LOG_TAG_DESCRIPTION, "← Response: ${result.controlled.asLogLine()}")
                 Log.d(DEMO_LOG_TAG_DESCRIPTION, DEMO_LOG_DIVIDER)
 
                 _homeState.updateDescription(DescriptionSuccess(result.uncontrolled, result.controlled))
@@ -170,4 +179,10 @@ class VocabViewModel @Inject constructor(
     private fun MutableStateFlow<HomeState>.updateDescription(newDescription: DescriptionState) {
         this.value = this.value.copy(description = newDescription)
     }
+
+    /**
+     * Collapses runs of whitespace so a multi-line prompt or response stays on a
+     * single, readable Logcat row. The text itself is never shortened or altered.
+     */
+    private fun String.asLogLine(): String = trim().replace(Regex("\\s+"), " ")
 }
