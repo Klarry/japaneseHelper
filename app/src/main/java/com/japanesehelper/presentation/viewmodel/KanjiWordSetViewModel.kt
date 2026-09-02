@@ -18,12 +18,12 @@ import javax.inject.Inject
  * Drives the Kanji Word Set screen: one tab per [ExperimentType], each with
  * its own independent [TabUiState].
  *
- * Lazy loading: only the initially active tab is fetched on open (see
- * [init]). Switching to another tab fetches it the first time only - once a
- * tab reaches [TabUiState.Success] it acts as its own cache and is shown as-is
- * on every later visit, keyed implicitly by kanji (fixed for this screen
- * instance, taken from the nav argument) and [ExperimentType]. A failed tab
- * does not affect the others and can be retried independently.
+ * All four experiments are requested concurrently, each in its own
+ * coroutine, as soon as the screen opens (see [init]) - switching tabs never
+ * waits on a network response, it just shows whatever that tab's state
+ * already is. A tab that reached [TabUiState.Success] acts as its own cache
+ * and is never refetched; a failed tab does not affect the others and can be
+ * retried independently via [retry].
  */
 @HiltViewModel
 class KanjiWordSetViewModel @Inject constructor(
@@ -37,13 +37,17 @@ class KanjiWordSetViewModel @Inject constructor(
     val state: StateFlow<KanjiWordSetScreenState> = _state
 
     init {
-        loadTab(_state.value.selectedTab)
+        // Fire all four experiments at once, each in its own coroutine, so no
+        // tab switch ever has to wait on a request that hasn't started yet.
+        ExperimentType.entries.forEach { experimentType -> loadTab(experimentType) }
     }
 
-    /** Switches the active tab and lazily loads it if it has no cached result yet. */
+    /**
+     * Switches the active tab. Every tab is already loading or loaded from
+     * [init], so this never triggers a request by itself.
+     */
     fun selectTab(experimentType: ExperimentType) {
         _state.value = _state.value.copy(selectedTab = experimentType)
-        loadTab(experimentType)
     }
 
     /** Re-runs a tab that previously failed. */

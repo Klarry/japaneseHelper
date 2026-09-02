@@ -16,7 +16,6 @@ import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -44,59 +43,44 @@ class KanjiWordSetViewModelTest {
     }
 
     @Test
-    fun `opening the screen loads only the first tab`() = runTest {
-        whenever(repository.getKanjiWordSet(any(), any())).thenReturn(result(ExperimentType.DIRECT))
+    fun `opening the screen requests all four experiments concurrently`() = runTest {
+        whenever(repository.getKanjiWordSet(any(), any())).thenAnswer { invocation ->
+            result(invocation.arguments[1] as ExperimentType)
+        }
 
         val viewModel = createViewModel()
 
-        assertEquals(ExperimentType.DIRECT, viewModel.state.value.selectedTab)
-        assertTrue(viewModel.state.value.tabs[ExperimentType.DIRECT] is TabUiState.Success)
-
-        ExperimentType.entries.filter { it != ExperimentType.DIRECT }.forEach { experimentType ->
-            assertEquals(TabUiState.Idle, viewModel.state.value.tabs[experimentType])
+        ExperimentType.entries.forEach { experimentType ->
+            assertTrue(viewModel.state.value.tabs[experimentType] is TabUiState.Success)
+            verify(repository, times(1)).getKanjiWordSet("学", experimentType)
         }
-
-        verify(repository, times(1)).getKanjiWordSet(eq("学"), eq(ExperimentType.DIRECT))
-        verify(repository, never()).getKanjiWordSet(any(), eq(ExperimentType.STEP_BY_STEP))
     }
 
     @Test
-    fun `selecting a new tab lazily loads only that tab`() = runTest {
+    fun `switching tabs never issues an extra request`() = runTest {
         whenever(repository.getKanjiWordSet(any(), any())).thenAnswer { invocation ->
             result(invocation.arguments[1] as ExperimentType)
         }
 
         val viewModel = createViewModel()
         viewModel.selectTab(ExperimentType.PROMPT)
+        viewModel.selectTab(ExperimentType.EXPERTS)
+        viewModel.selectTab(ExperimentType.DIRECT)
 
-        assertEquals(ExperimentType.PROMPT, viewModel.state.value.selectedTab)
-        assertTrue(viewModel.state.value.tabs[ExperimentType.PROMPT] is TabUiState.Success)
-
-        verify(repository, times(1)).getKanjiWordSet("学", ExperimentType.DIRECT)
-        verify(repository, times(1)).getKanjiWordSet("学", ExperimentType.PROMPT)
-        verify(repository, never()).getKanjiWordSet(any(), eq(ExperimentType.STEP_BY_STEP))
-        verify(repository, never()).getKanjiWordSet(any(), eq(ExperimentType.EXPERTS))
-    }
-
-    @Test
-    fun `reselecting an already loaded tab does not refetch`() = runTest {
-        whenever(repository.getKanjiWordSet(any(), any())).thenAnswer { invocation ->
-            result(invocation.arguments[1] as ExperimentType)
+        assertEquals(ExperimentType.DIRECT, viewModel.state.value.selectedTab)
+        ExperimentType.entries.forEach { experimentType ->
+            verify(repository, times(1)).getKanjiWordSet(eq("学"), eq(experimentType))
         }
-
-        val viewModel = createViewModel()
-        viewModel.selectTab(ExperimentType.DIRECT)
-        viewModel.selectTab(ExperimentType.DIRECT)
-
-        verify(repository, times(1)).getKanjiWordSet("学", ExperimentType.DIRECT)
     }
 
     @Test
     fun `an error on one tab does not affect the others`() = runTest {
         whenever(repository.getKanjiWordSet(any(), eq(ExperimentType.DIRECT)))
             .thenThrow(RuntimeException("boom"))
-        whenever(repository.getKanjiWordSet(any(), eq(ExperimentType.STEP_BY_STEP)))
-            .thenReturn(result(ExperimentType.STEP_BY_STEP))
+        ExperimentType.entries.filter { it != ExperimentType.DIRECT }.forEach { experimentType ->
+            whenever(repository.getKanjiWordSet(any(), eq(experimentType)))
+                .thenReturn(result(experimentType))
+        }
 
         val viewModel = createViewModel()
 
@@ -104,15 +88,19 @@ class KanjiWordSetViewModelTest {
         assertTrue(directState is TabUiState.Error)
         assertEquals("boom", (directState as TabUiState.Error).message)
 
-        viewModel.selectTab(ExperimentType.STEP_BY_STEP)
-
-        assertTrue(viewModel.state.value.tabs[ExperimentType.STEP_BY_STEP] is TabUiState.Success)
+        ExperimentType.entries.filter { it != ExperimentType.DIRECT }.forEach { experimentType ->
+            assertTrue(viewModel.state.value.tabs[experimentType] is TabUiState.Success)
+        }
     }
 
     @Test
-    fun `retry re-runs a failed tab`() = runTest {
+    fun `retry re-runs only the failed tab`() = runTest {
         whenever(repository.getKanjiWordSet(any(), eq(ExperimentType.DIRECT)))
             .thenThrow(RuntimeException("boom"))
+        ExperimentType.entries.filter { it != ExperimentType.DIRECT }.forEach { experimentType ->
+            whenever(repository.getKanjiWordSet(any(), eq(experimentType)))
+                .thenReturn(result(experimentType))
+        }
 
         val viewModel = createViewModel()
         assertTrue(viewModel.state.value.tabs[ExperimentType.DIRECT] is TabUiState.Error)
@@ -124,5 +112,8 @@ class KanjiWordSetViewModelTest {
 
         assertTrue(viewModel.state.value.tabs[ExperimentType.DIRECT] is TabUiState.Success)
         verify(repository, times(2)).getKanjiWordSet(eq("学"), eq(ExperimentType.DIRECT))
+        ExperimentType.entries.filter { it != ExperimentType.DIRECT }.forEach { experimentType ->
+            verify(repository, times(1)).getKanjiWordSet(eq("学"), eq(experimentType))
+        }
     }
 }

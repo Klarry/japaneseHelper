@@ -32,8 +32,9 @@ import com.japanesehelper.presentation.viewmodel.screendata.TabUiState
 /**
  * Kanji Word Set screen: shows the dynamic kanji the screen was opened for
  * and lets the user compare its four prompting experiments side by side via
- * tabs. Each tab is fetched lazily (see [KanjiWordSetViewModel]) - opening
- * the screen only loads the active tab.
+ * tabs. All four are requested concurrently as soon as the screen opens (see
+ * [KanjiWordSetViewModel]), so switching tabs is instant and never waits on
+ * a response.
  *
  * @param navController Used only to pop back to the previous screen.
  * @param viewModel Scoped to this screen's nav back stack entry; the kanji

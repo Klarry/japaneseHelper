@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavController
 import com.japanesehelper.presentation.screens.homeScreen.components.Header
+import com.japanesehelper.presentation.screens.homeScreen.components.KanjiWordSetButton
 import com.japanesehelper.presentation.screens.homeScreen.components.LevelDropdownMenu
 import com.japanesehelper.presentation.screens.homeScreen.components.RandomWordCard
 import com.japanesehelper.presentation.theme.JapaneseHelperTheme
@@ -31,8 +32,9 @@ fun HomeScreen(navController: NavController) {
             val modifier = Modifier.padding(horizontal = LocalAppPadding.current.default)
 
             Header()
+            KanjiWordSetButton(navController = navController, modifier = modifier)
             LevelDropdownMenu(modifier = modifier)
-            RandomWordCard(modifier = modifier, navController = navController)
+            RandomWordCard(modifier = modifier)
         }
     }
 }
