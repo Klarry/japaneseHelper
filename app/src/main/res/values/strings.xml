@@ -8,4 +8,18 @@
     <string name="home_ai_explanation_title">AI Explanation</string>
     <string name="home_without_constraints_caption">Without constraints</string>
     <string name="home_with_constraints_caption">With constraints</string>
+    <string name="home_kanji_word_set_button">Kanji Word Set</string>
+
+    <string name="kanji_word_set_title">Kanji Word Set</string>
+    <string name="kanji_word_set_tab_direct">Direct</string>
+    <string name="kanji_word_set_tab_step_by_step">Step-by-step</string>
+    <string name="kanji_word_set_tab_prompt">Prompt</string>
+    <string name="kanji_word_set_tab_experts">Experts</string>
+    <string name="kanji_word_set_prompt_title">Prompt</string>
+    <string name="kanji_word_set_response_title">Response</string>
+    <string name="kanji_word_set_words_row">words: %1$s</string>
+    <string name="kanji_word_set_cost_row">cost: %1$d</string>
+    <string name="kanji_word_set_value_row">value: %1$d</string>
+    <string name="kanji_word_set_retry">Retry</string>
+    <string name="kanji_word_set_generic_error">Something went wrong. Please try again.</string>
 </resources>

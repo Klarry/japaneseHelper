@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -21,7 +22,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.japanesehelper.R
+import com.japanesehelper.presentation.navigation.Screens
 import com.japanesehelper.presentation.theme.LocalAppFontSize
 import com.japanesehelper.presentation.theme.LocalAppOffset
 import com.japanesehelper.presentation.theme.LocalAppPadding
@@ -37,6 +41,7 @@ import com.japanesehelper.presentation.viewmodel.VocabViewModel
 @Composable
 fun RandomWordCard(
     modifier: Modifier = Modifier,
+    navController: NavController = rememberNavController(),
     viewModel: VocabViewModel = hiltViewModel()
 ) {
     val state by viewModel.homeState.collectAsState()
@@ -114,6 +119,20 @@ fun RandomWordCard(
                             bottom = LocalAppPadding.current.defaultAndHalf
                         )
                 )
+            }
+
+            state.randomWord?.word?.let { word ->
+                OutlinedButton(
+                    onClick = { navController.navigate(Screens.KanjiWordSet.createRoute(word)) },
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(
+                            horizontal = LocalAppPadding.current.defaultAndHalf,
+                            vertical = LocalAppPadding.current.default
+                        )
+                ) {
+                    Text(stringResource(R.string.home_kanji_word_set_button))
+                }
             }
         }
     }

@@ -4,12 +4,15 @@ import androidx.datastore.core.DataStore
 import com.japanesehelper.android.datastore.VocabPreferences
 import com.japanesehelper.data.remote.api.DescriptionApi
 import com.japanesehelper.data.remote.api.ImageSearchApi
+import com.japanesehelper.data.remote.api.KanjiWordSetApi
 import com.japanesehelper.data.remote.api.VocabApi
 import com.japanesehelper.data.repository.DescriptionRepositoryImpl
 import com.japanesehelper.data.repository.ImageSearchRepositoryImpl
+import com.japanesehelper.data.repository.KanjiWordSetRepositoryImpl
 import com.japanesehelper.data.repository.VocabRepositoryImpl
 import com.japanesehelper.domain.repository.DescriptionRepository
 import com.japanesehelper.domain.repository.ImageSearchRepository
+import com.japanesehelper.domain.repository.KanjiWordSetRepository
 import com.japanesehelper.domain.repository.VocabRepository
 import dagger.Module
 import dagger.Provides
@@ -47,5 +50,13 @@ class RepositoryModule {
         api: DescriptionApi,
     ): DescriptionRepository {
         return DescriptionRepositoryImpl(api)
+    }
+
+    @Provides
+    @Singleton
+    fun provideKanjiWordSetRepository(
+        api: KanjiWordSetApi,
+    ): KanjiWordSetRepository {
+        return KanjiWordSetRepositoryImpl(api)
     }
 }
