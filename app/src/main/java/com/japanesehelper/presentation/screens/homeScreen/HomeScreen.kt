@@ -1,6 +1,8 @@
 package com.japanesehelper.presentation.screens.homeScreen
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavController
+import com.japanesehelper.presentation.screens.homeScreen.components.AiExplanationButton
 import com.japanesehelper.presentation.screens.homeScreen.components.Header
 import com.japanesehelper.presentation.screens.homeScreen.components.KanjiWordSetButton
 import com.japanesehelper.presentation.screens.homeScreen.components.LevelDropdownMenu
@@ -32,7 +35,15 @@ fun HomeScreen(navController: NavController) {
             val modifier = Modifier.padding(horizontal = LocalAppPadding.current.default)
 
             Header()
-            KanjiWordSetButton(navController = navController, modifier = modifier)
+
+            Row(
+                modifier = modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(LocalAppPadding.current.half)
+            ) {
+                KanjiWordSetButton(navController = navController, modifier = Modifier.weight(1f))
+                AiExplanationButton(navController = navController, modifier = Modifier.weight(1f))
+            }
+
             LevelDropdownMenu(modifier = modifier)
             RandomWordCard(modifier = modifier)
         }

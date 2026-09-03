@@ -104,7 +104,7 @@ private fun ResponseDetails(result: KanjiWordSet) {
  * One labelled block framed with dividers, matching the screen's PROMPT /
  * RESPONSE wireframe: an uppercase caption, then the content on a tinted
  * surface between a divider above and below - the same visual language as
- * [com.japanesehelper.presentation.screens.homeScreen.components.DescriptionSection].
+ * [com.japanesehelper.presentation.screens.aiExplanationScreen.components.DescriptionSection].
  */
 @Composable
 private fun LabeledBlock(

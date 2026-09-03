@@ -1,10 +1,11 @@
-package com.japanesehelper.presentation.screens.homeScreen.components
+package com.japanesehelper.presentation.screens.aiExplanationScreen.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -16,6 +17,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import com.japanesehelper.R
+import com.japanesehelper.presentation.screens.homeScreen.components.CircularProgressIndicator
+import com.japanesehelper.presentation.screens.homeScreen.components.MarkdownText
 import com.japanesehelper.presentation.theme.JapaneseHelperTheme
 import com.japanesehelper.presentation.theme.LocalAppPadding
 import com.japanesehelper.presentation.viewmodel.screendata.DescriptionError
@@ -30,15 +33,17 @@ import com.japanesehelper.presentation.viewmodel.screendata.DescriptionSuccess
  *
  * Each response arrives as lightweight Markdown and is rendered through
  * [MarkdownText], so headings, emphasis and lists appear as styled UI rather
- * than raw syntax. The section grows with its content, so the hosting card
- * adapts its height to the response length instead of clipping it.
+ * than raw syntax. The section grows with its content, so the hosting screen
+ * scrolls instead of clipping it.
  *
  * @param state The current [DescriptionState] (loading, error, or success).
+ * @param onRetry Called when the user asks to retry after an error.
  * @param modifier Optional [Modifier] for styling and layout adjustments.
  */
 @Composable
 fun DescriptionSection(
     state: DescriptionState,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     when (state) {
@@ -53,7 +58,22 @@ fun DescriptionSection(
             }
         }
 
-        is DescriptionError -> Unit
+        is DescriptionError -> {
+            Column(
+                modifier = modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(LocalAppPadding.current.default)
+            ) {
+                Text(
+                    text = state.message.ifEmpty { stringResource(R.string.ai_explanation_generic_error) },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Button(onClick = onRetry) {
+                    Text(stringResource(R.string.ai_explanation_retry))
+                }
+            }
+        }
 
         is DescriptionSuccess -> {
             Column(
@@ -62,20 +82,13 @@ fun DescriptionSection(
             ) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                Text(
-                    text = stringResource(R.string.home_ai_explanation_title),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
                 DescriptionBlock(
-                    caption = stringResource(R.string.home_without_constraints_caption),
+                    caption = stringResource(R.string.ai_explanation_without_constraints_caption),
                     text = state.uncontrolled
                 )
 
                 DescriptionBlock(
-                    caption = stringResource(R.string.home_with_constraints_caption),
+                    caption = stringResource(R.string.ai_explanation_with_constraints_caption),
                     text = state.controlled
                 )
             }
@@ -143,6 +156,7 @@ fun DescriptionSectionShortPreview() {
     JapaneseHelperTheme {
         DescriptionSection(
             state = DescriptionSuccess(uncontrolled = SHORT_TEXT, controlled = SHORT_TEXT),
+            onRetry = {},
             modifier = Modifier.padding(LocalAppPadding.current.defaultAndHalf)
         )
     }
@@ -154,6 +168,7 @@ fun DescriptionSectionLongPreview() {
     JapaneseHelperTheme {
         DescriptionSection(
             state = DescriptionSuccess(uncontrolled = LONG_TEXT, controlled = SHORT_TEXT),
+            onRetry = {},
             modifier = Modifier.padding(LocalAppPadding.current.defaultAndHalf)
         )
     }

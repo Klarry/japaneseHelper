@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -75,12 +76,24 @@ fun RandomWordCard(
                 }
             }
 
-            state.picture?.let { data ->
+            val picture = state.picture
+
+            if (picture == null) {
+                OutlinedButton(
+                    onClick = { viewModel.loadPicture() },
+                    enabled = !state.randomWord?.meaning.isNullOrEmpty(),
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = LocalAppPadding.current.default)
+                ) {
+                    Text(stringResource(R.string.home_create_picture_button))
+                }
+            } else {
                 ImageWithProgress(
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
                         .padding(bottom = LocalAppPadding.current.default),
-                    data = data
+                    data = picture
                 )
             }
 
@@ -97,24 +110,8 @@ fun RandomWordCard(
             StyledWord(
                 word = state.randomWord?.meaning.orEmpty(),
                 caption = stringResource(R.string.home_meaning_caption),
-                modifier = if (state.description == null) {
-                    Modifier.padding(bottom = LocalAppPadding.current.defaultAndHalf)
-                } else {
-                    Modifier
-                }
+                modifier = Modifier.padding(bottom = LocalAppPadding.current.defaultAndHalf)
             )
-
-            state.description?.let { description ->
-                DescriptionSection(
-                    state = description,
-                    modifier = Modifier
-                        .padding(horizontal = LocalAppPadding.current.defaultAndHalf)
-                        .padding(
-                            top = LocalAppPadding.current.default,
-                            bottom = LocalAppPadding.current.defaultAndHalf
-                        )
-                )
-            }
         }
     }
 }

@@ -3,14 +3,8 @@ package com.japanesehelper.presentation.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.japanesehelper.data.remote.DescriptionPrompts
-import com.japanesehelper.domain.repository.DescriptionRepository
 import com.japanesehelper.domain.repository.ImageSearchRepository
 import com.japanesehelper.domain.repository.VocabRepository
-import com.japanesehelper.presentation.viewmodel.screendata.DescriptionError
-import com.japanesehelper.presentation.viewmodel.screendata.DescriptionLoading
-import com.japanesehelper.presentation.viewmodel.screendata.DescriptionState
-import com.japanesehelper.presentation.viewmodel.screendata.DescriptionSuccess
 import com.japanesehelper.presentation.viewmodel.screendata.HomeState
 import com.japanesehelper.presentation.viewmodel.screendata.LevelState
 import com.japanesehelper.presentation.viewmodel.screendata.PictureError
@@ -32,8 +26,7 @@ import javax.inject.Inject
 @HiltViewModel
 class VocabViewModel @Inject constructor(
     private val vocabRepository: VocabRepository,
-    private val imageSearchRepository: ImageSearchRepository,
-    private val descriptionRepository: DescriptionRepository
+    private val imageSearchRepository: ImageSearchRepository
 ) : ViewModel() {
 
     private companion object {
@@ -42,10 +35,6 @@ class VocabViewModel @Inject constructor(
         const val DEMO_LOG_TAG = "ImageSearch"
         const val DEMO_LOG_VIA = "Gemini + Google Image Search"
         val DEMO_LOG_DIVIDER = "─".repeat(40)
-
-        const val DEMO_LOG_TAG_DESCRIPTION = "ImageDescription"
-        const val DEMO_LOG_MODE_UNCONTROLLED = "UNCONTROLLED"
-        const val DEMO_LOG_MODE_CONTROLLED = "CONTROLLED"
     }
 
     private val _homeState = MutableStateFlow(HomeState())
@@ -56,8 +45,7 @@ class VocabViewModel @Inject constructor(
     fun getCardData() {
         viewModelScope.launch {
             getRandomWord()?.join()
-            getPictureData()
-            getDescription()
+            resetPicture()
             getJLPTLevel().collect {
                 _homeState.value = _homeState.value.copy(levelState = it)
             }
@@ -94,7 +82,12 @@ class VocabViewModel @Inject constructor(
         }
     }
 
-    private fun getPictureData(): Job? {
+    /**
+     * Loads the picture for the current word. Only ever called on demand -
+     * from the "Create pic" button - never automatically, so opening a new
+     * word never triggers a search by itself.
+     */
+    fun loadPicture(): Job? {
         val query = _homeState.value.randomWord?.meaning
         if (query.isNullOrEmpty()) return null
 
@@ -103,9 +96,9 @@ class VocabViewModel @Inject constructor(
         return viewModelScope.launch {
             try {
                 Log.d(DEMO_LOG_TAG, "$DEMO_LOG_TAG  $DEMO_LOG_DIVIDER")
-                Log.d(DEMO_LOG_TAG, "\u2192 Searching image for: ${_homeState.value.randomWord?.word}")
-                Log.d(DEMO_LOG_TAG, "\u2192 Query: \"$query\"")
-                Log.d(DEMO_LOG_TAG, "\u2192 Via: $DEMO_LOG_VIA")
+                Log.d(DEMO_LOG_TAG, "→ Searching image for: ${_homeState.value.randomWord?.word}")
+                Log.d(DEMO_LOG_TAG, "→ Query: \"$query\"")
+                Log.d(DEMO_LOG_TAG, "→ Via: $DEMO_LOG_VIA")
 
                 val imageBytes = imageSearchRepository.getSearchResults(query)?.result
                 _homeState.updatePicture(PictureSuccess(imageBytes))
@@ -134,55 +127,8 @@ class VocabViewModel @Inject constructor(
         this.value = this.value.copy(picture = newPicture)
     }
 
-    private fun getDescription(): Job? {
-        val word = _homeState.value.randomWord?.word
-        val meaning = _homeState.value.randomWord?.meaning
-        if (meaning.isNullOrEmpty()) return null
-
-        _homeState.updateDescription(DescriptionLoading())
-
-        return viewModelScope.launch {
-            try {
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, DEMO_LOG_DIVIDER)
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Word: $word")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Meaning: \"$meaning\"")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ POST /description")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ LLM: ${DescriptionPrompts.PROVIDER}")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Mode: $DEMO_LOG_MODE_UNCONTROLLED")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Prompt: \"${DescriptionPrompts.uncontrolled(meaning).asLogLine()}\"")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Mode: $DEMO_LOG_MODE_CONTROLLED")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Prompt: \"${DescriptionPrompts.controlled(meaning).asLogLine()}\"")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "→ Constraints: ${DescriptionPrompts.CONSTRAINTS}")
-
-                val result = descriptionRepository.getDescription(meaning)
-
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "← 200 OK")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "← Mode: $DEMO_LOG_MODE_UNCONTROLLED")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "← Response: ${result.uncontrolled.asLogLine()}")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "← Mode: $DEMO_LOG_MODE_CONTROLLED")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, "← Response: ${result.controlled.asLogLine()}")
-                Log.d(DEMO_LOG_TAG_DESCRIPTION, DEMO_LOG_DIVIDER)
-
-                _homeState.updateDescription(DescriptionSuccess(result.uncontrolled, result.controlled))
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                _homeState.updateDescription(DescriptionError(e.message.orEmpty()))
-                Log.d("getDescription",
-                    "Exception thrown: ${ e.message }, " +
-                        "cause: ${ e.cause }, " +
-                        "localizedMessage: ${ e.localizedMessage }"
-                )
-                e.printStackTrace()
-            }
-        }
+    /** Clears the picture back to "not requested yet" so the "Create pic" button reappears. */
+    private fun resetPicture() {
+        _homeState.value = _homeState.value.copy(picture = null)
     }
-
-    private fun MutableStateFlow<HomeState>.updateDescription(newDescription: DescriptionState) {
-        this.value = this.value.copy(description = newDescription)
-    }
-
-    /**
-     * Collapses runs of whitespace so a multi-line prompt or response stays on a
-     * single, readable Logcat row. The text itself is never shortened or altered.
-     */
-    private fun String.asLogLine(): String = trim().replace(Regex("\\s+"), " ")
 }

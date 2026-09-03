@@ -5,10 +5,15 @@
     <string name="home_romaji_caption">romaji</string>
     <string name="home_meaning_caption">meaning</string>
     <string name="home_level_selection_caption">Select level</string>
-    <string name="home_ai_explanation_title">AI Explanation</string>
-    <string name="home_without_constraints_caption">Without constraints</string>
-    <string name="home_with_constraints_caption">With constraints</string>
     <string name="home_kanji_word_set_button">Kanji Word Set</string>
+    <string name="home_ai_explanation_button">AI Explanation</string>
+    <string name="home_create_picture_button">Create pic</string>
+
+    <string name="ai_explanation_title">AI Explanation</string>
+    <string name="ai_explanation_without_constraints_caption">Without constraints</string>
+    <string name="ai_explanation_with_constraints_caption">With constraints</string>
+    <string name="ai_explanation_retry">Retry</string>
+    <string name="ai_explanation_generic_error">Something went wrong. Please try again.</string>
 
     <string name="kanji_word_set_title">Kanji Word Set</string>
     <string name="kanji_word_set_tab_direct">Direct</string>

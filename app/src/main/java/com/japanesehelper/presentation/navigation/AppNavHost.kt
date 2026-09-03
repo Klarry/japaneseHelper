@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.japanesehelper.presentation.screens.aiExplanationScreen.AiExplanationScreen
 import com.japanesehelper.presentation.screens.homeScreen.HomeScreen
 import com.japanesehelper.presentation.screens.kanjiWordSetScreen.KanjiWordSetScreen
 
@@ -24,6 +25,15 @@ fun AppNavHost() {
             )
         ) {
             KanjiWordSetScreen(navController)
+        }
+        composable(
+            route = Screens.AiExplanation.route,
+            arguments = listOf(
+                navArgument(Screens.AiExplanation.ARG_WORD) { type = NavType.StringType },
+                navArgument(Screens.AiExplanation.ARG_MEANING) { type = NavType.StringType }
+            )
+        ) {
+            AiExplanationScreen(navController)
         }
     }
 }
