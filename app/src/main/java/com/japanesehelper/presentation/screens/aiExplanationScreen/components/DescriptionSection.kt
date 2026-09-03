@@ -22,20 +22,6 @@ import com.japanesehelper.presentation.viewmodel.screendata.DescriptionLoading
 import com.japanesehelper.presentation.viewmodel.screendata.DescriptionState
 import com.japanesehelper.presentation.viewmodel.screendata.DescriptionSuccess
 
-/**
- * Displays the AI-generated explanation of a vocabulary meaning: one response
- * generated without constraints and one generated with explicit format, length,
- * and termination constraints, so the difference is obvious side by side.
- *
- * Each response arrives as lightweight Markdown and is rendered through
- * [MarkdownText], so headings, emphasis and lists appear as styled UI rather
- * than raw syntax. The section grows with its content, so the hosting screen
- * scrolls instead of clipping it.
- *
- * @param state The current [DescriptionState] (loading, error, or success).
- * @param onRetry Called when the user asks to retry after an error.
- * @param modifier Optional [Modifier] for styling and layout adjustments.
- */
 @Composable
 fun DescriptionSection(
     state: DescriptionState,

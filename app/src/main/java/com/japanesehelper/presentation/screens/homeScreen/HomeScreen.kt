@@ -12,7 +12,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavController
 import com.japanesehelper.presentation.screens.homeScreen.components.AiExplanationButton
 import com.japanesehelper.presentation.screens.homeScreen.components.Header
@@ -20,25 +19,24 @@ import com.japanesehelper.presentation.screens.homeScreen.components.KanjiWordSe
 import com.japanesehelper.presentation.screens.homeScreen.components.LevelDropdownMenu
 import com.japanesehelper.presentation.screens.homeScreen.components.RandomWordCard
 import com.japanesehelper.presentation.screens.homeScreen.components.TemperatureDescriptionButton
-import com.japanesehelper.presentation.theme.JapaneseHelperTheme
 import com.japanesehelper.presentation.theme.LocalAppPadding
 
 @Composable
 fun HomeScreen(navController: NavController) {
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         Column(
-            modifier = Modifier.padding(innerPadding)
-                .fillMaxWidth()
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = LocalAppPadding.current.default),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(LocalAppPadding.current.default),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(LocalAppPadding.current.default)
         ) {
-            val modifier = Modifier.padding(horizontal = LocalAppPadding.current.default)
-
             Header()
 
             Row(
-                modifier = modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(LocalAppPadding.current.half)
             ) {
                 KanjiWordSetButton(navController = navController, modifier = Modifier.weight(1f))
@@ -46,17 +44,8 @@ fun HomeScreen(navController: NavController) {
                 TemperatureDescriptionButton(navController = navController, modifier = Modifier.weight(1f))
             }
 
-            LevelDropdownMenu(modifier = modifier)
-            RandomWordCard(modifier = modifier)
+            LevelDropdownMenu()
+            RandomWordCard()
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun RandomWordCardPreview() {
-    JapaneseHelperTheme {
-        Header()
-        RandomWordCard()
     }
 }

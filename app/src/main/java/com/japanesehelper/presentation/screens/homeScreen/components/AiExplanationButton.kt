@@ -12,17 +12,6 @@ import com.japanesehelper.R
 import com.japanesehelper.presentation.navigation.Screens
 import com.japanesehelper.presentation.viewmodel.VocabViewModel
 
-/**
- * Entry point into the AI Explanation screen.
- *
- * Always visible - it does not wait for the random word to load - but only
- * enabled once both a word and its meaning are available, since the screen
- * needs both dynamically (never hardcoded) to request an explanation.
- *
- * @param navController Used to navigate to [Screens.AiExplanation].
- * @param modifier Optional [Modifier] for styling and layout adjustments.
- * @param viewModel The [VocabViewModel] instance providing the current random word.
- */
 @Composable
 fun AiExplanationButton(
     navController: NavController = rememberNavController(),

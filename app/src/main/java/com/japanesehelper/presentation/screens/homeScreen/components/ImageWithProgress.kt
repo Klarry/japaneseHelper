@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,7 +19,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
@@ -33,69 +30,39 @@ import com.japanesehelper.presentation.viewmodel.screendata.PictureLoading
 import com.japanesehelper.presentation.viewmodel.screendata.PictureState
 import com.japanesehelper.presentation.viewmodel.screendata.PictureSuccess
 
-const val PIC_ASPECT_RATIO = 16f / 9f
+private const val PIC_ASPECT_RATIO = 16f / 9f
 
 private const val IMAGE_WIDTH_FRACTION = 0.7f
 
-/**
- * Displays an image with a loading indicator or an error message
- * depending on the provided [data] state.
- *
- * Uses [PictureState] to determine the UI state:
- * - If the data is loading — shows a progress indicator.
- * - If loading is successful — displays the image.
- * - If an error occurs — shows an image placeholder.
- *
- * @param data The current screen state containing image data (success, error, or loading).
- * @param modifier Modifier for customizing the appearance and layout.
- */
 @Composable
 fun ImageWithProgress(
     data: PictureState,
     modifier: Modifier = Modifier
 ) {
-
     when (data) {
         is PictureError -> {
-            Box(
-                modifier = modifier
-                    .fillMaxWidth(IMAGE_WIDTH_FRACTION)
-                    .aspectRatio(PIC_ASPECT_RATIO),
-                contentAlignment = Alignment.Center
-            ) {
+            PictureFrame(modifier) {
                 Image(
                     painter = painterResource(R.drawable.image_placeholder),
-                    contentDescription = null,
+                    contentDescription = null
                 )
             }
         }
 
         is PictureSuccess -> {
-            Box(
-                modifier = modifier
-                    .fillMaxWidth(IMAGE_WIDTH_FRACTION)
-                    .aspectRatio(PIC_ASPECT_RATIO),
-                contentAlignment = Alignment.Center
-            ) {
-
+            PictureFrame(modifier) {
                 var isLoading by remember { mutableStateOf(false) }
 
-                if (isLoading) { CircularProgressIndicator() }
+                if (isLoading) AppProgressIndicator()
 
                 val painter = rememberAsyncImagePainter(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(data.imageBytes)
                         .error(R.drawable.image_placeholder)
                         .build(),
-                    onState = { state ->
-                        isLoading = when (state) {
-                            is AsyncImagePainter.State.Loading -> true
-                            is AsyncImagePainter.State.Success -> false
-                            is AsyncImagePainter.State.Error -> false
-                            else -> false
-                        }
-                    }
+                    onState = { state -> isLoading = state is AsyncImagePainter.State.Loading }
                 )
+
                 Crossfade(targetState = painter, modifier = Modifier.fillMaxSize()) { currentPainter ->
                     Image(
                         painter = currentPainter,
@@ -107,36 +74,28 @@ fun ImageWithProgress(
             }
         }
 
-        is PictureLoading -> {
-            Box(
-                modifier = modifier
-                    .fillMaxWidth(IMAGE_WIDTH_FRACTION)
-                    .aspectRatio(PIC_ASPECT_RATIO),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        }
+        is PictureLoading -> PictureFrame(modifier) { AppProgressIndicator() }
 
         is PictureLimitExceeded -> Unit
     }
 }
 
 @Composable
-fun CircularProgressIndicator() {
-    CircularProgressIndicator(
-        modifier = Modifier
-            .size(24.dp)
-            .fillMaxWidth(),
-        strokeWidth = 2.dp,
-    )
+private fun PictureFrame(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth(IMAGE_WIDTH_FRACTION)
+            .aspectRatio(PIC_ASPECT_RATIO),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
 }
 
-@Preview(
-    name = "ImageWithProgress Preview",
-    showBackground = true,
-    backgroundColor = 0xFFFFFFFF
-)
+@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
 @Composable
 fun ImageWithProgressPreview() {
     JapaneseHelperTheme {

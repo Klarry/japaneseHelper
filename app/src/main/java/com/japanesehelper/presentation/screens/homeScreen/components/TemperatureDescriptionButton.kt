@@ -12,19 +12,6 @@ import com.japanesehelper.R
 import com.japanesehelper.presentation.navigation.Screens
 import com.japanesehelper.presentation.viewmodel.VocabViewModel
 
-/**
- * Entry point into the Temperature Description screen.
- *
- * Always visible - it does not wait for the random word to load - but only
- * enabled once a word is available, since the screen needs a dynamic kanji
- * to open with (never hardcoded). Matches [KanjiWordSetButton] and
- * [AiExplanationButton]: the whole word is passed on, not just its first
- * character.
- *
- * @param navController Used to navigate to [Screens.TemperatureDescription].
- * @param modifier Optional [Modifier] for styling and layout adjustments.
- * @param viewModel The [VocabViewModel] instance providing the current random word.
- */
 @Composable
 fun TemperatureDescriptionButton(
     navController: NavController = rememberNavController(),

@@ -10,12 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import com.japanesehelper.presentation.theme.LocalAppPadding
 
-/**
- * One labelled block: an uppercase caption above a [TintedSurface]. Shared by
- * every screen that shows a captioned response (PROMPT/RESPONSE on Kanji Word
- * Set, the two AI Explanation variants) so they read as one consistent
- * pattern rather than three separately styled ones.
- */
 @Composable
 fun LabeledBlock(
     caption: String,

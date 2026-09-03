@@ -8,7 +8,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.japanesehelper.presentation.theme.LocalAppPadding
 
-/** A centered loading spinner for a whole section - the shared loading look. */
 @Composable
 fun CenteredLoadingIndicator(modifier: Modifier = Modifier) {
     Box(
@@ -17,6 +16,6 @@ fun CenteredLoadingIndicator(modifier: Modifier = Modifier) {
             .padding(vertical = LocalAppPadding.current.default),
         contentAlignment = Alignment.Center
     ) {
-        CircularProgressIndicator()
+        AppProgressIndicator()
     }
 }

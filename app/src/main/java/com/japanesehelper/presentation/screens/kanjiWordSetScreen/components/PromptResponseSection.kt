@@ -16,13 +16,6 @@ import com.japanesehelper.presentation.screens.homeScreen.components.LabeledBloc
 import com.japanesehelper.presentation.theme.LocalAppPadding
 import com.japanesehelper.presentation.viewmodel.screendata.TabUiState
 
-/**
- * Renders the currently selected experiment tab: a loading spinner, an error
- * with a retry action, or the PROMPT/RESPONSE blocks once the result has
- * loaded. [state.result.prompt][KanjiWordSet.prompt] is shown exactly as the
- * backend returned it - nothing here builds or alters a prompt, and no
- * intermediate model reasoning is ever surfaced.
- */
 @Composable
 fun PromptResponseSection(
     state: TabUiState,

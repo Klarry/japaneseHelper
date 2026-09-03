@@ -18,17 +18,7 @@ import com.japanesehelper.presentation.theme.LocalAppPadding
 
 private const val SUBHEADING_LEVEL = 3
 
-/**
- * Renders a lightweight Markdown [String] as structured Compose content.
- *
- * The model answers in Markdown, so the text is parsed into [MarkdownBlock]s and
- * each block is laid out with the app's own typography and spacing tokens. No
- * Markdown syntax is ever shown to the user, and the composable grows with its
- * content so the hosting card can scroll instead of clipping.
- *
- * @param markdown The raw response text.
- * @param modifier Optional [Modifier] for styling and layout adjustments.
- */
+/** Renders the model's Markdown reply as styled content, never as raw syntax. */
 @Composable
 fun MarkdownText(
     markdown: String,
@@ -58,10 +48,7 @@ fun MarkdownText(
     }
 }
 
-/**
- * Vertical rhythm between two consecutive blocks: list items sit close together,
- * paragraphs get a comfortable gap, and headings get extra air above them.
- */
+/** Vertical rhythm between two consecutive blocks. */
 private fun MarkdownBlock.spacingBefore(next: MarkdownBlock, tight: Dp, normal: Dp, loose: Dp): Dp =
     when {
         next is MarkdownBlock.Divider || this is MarkdownBlock.Divider -> Dp.Hairline

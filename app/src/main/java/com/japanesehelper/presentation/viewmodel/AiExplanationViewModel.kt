@@ -17,14 +17,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * Drives the AI Explanation screen: requests the uncontrolled and
- * constrained Gemini explanations for the current word's meaning as soon as
- * the screen opens (see [init]) - loading only ever starts after the user
- * taps the entry-point button on Home, never automatically before that.
- *
- * [word] and the meaning both come from the nav argument, never hardcoded.
- */
 @HiltViewModel
 class AiExplanationViewModel @Inject constructor(
     private val descriptionRepository: DescriptionRepository,
@@ -48,7 +40,6 @@ class AiExplanationViewModel @Inject constructor(
         loadDescription()
     }
 
-    /** Re-runs the explanation request, e.g. after [DescriptionError]. */
     fun retry() {
         loadDescription()
     }
@@ -90,9 +81,5 @@ class AiExplanationViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Collapses runs of whitespace so a multi-line prompt or response stays on a
-     * single, readable Logcat row. The text itself is never shortened or altered.
-     */
     private fun String.asLogLine(): String = trim().replace(Regex("\\s+"), " ")
 }

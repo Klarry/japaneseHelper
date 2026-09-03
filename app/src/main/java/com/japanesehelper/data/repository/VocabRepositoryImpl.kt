@@ -3,7 +3,6 @@ package com.japanesehelper.data.repository
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.IOException
-import androidx.lifecycle.viewModelScope
 import com.japanesehelper.android.datastore.LevelJLPT
 import com.japanesehelper.android.datastore.VocabPreferences
 import com.japanesehelper.data.mapper.toDomain
@@ -13,11 +12,8 @@ import com.japanesehelper.domain.repository.VocabRepository
 import com.japanesehelper.presentation.viewmodel.screendata.LevelState
 import com.japanesehelper.tools.extensions.toEnumOr
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 class VocabRepositoryImpl @Inject constructor(

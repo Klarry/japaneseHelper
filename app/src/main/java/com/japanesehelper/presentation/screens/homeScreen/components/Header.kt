@@ -20,11 +20,6 @@ import com.japanesehelper.presentation.theme.LocalAppFontSize
 import com.japanesehelper.presentation.theme.LocalAppPadding
 import com.japanesehelper.presentation.theme.rainbowColors
 
-/**
-* Displays the main header text of the screen with a rainbow gradient effect.
-*
-* @param modifier Optional [Modifier] for customizing the layout or styling of the header
-* */
 @Composable
 fun Header(
     modifier: Modifier = Modifier
@@ -32,11 +27,7 @@ fun Header(
     val brush = Brush.linearGradient(colors = rainbowColors)
 
     Text(
-        modifier = modifier
-            .padding(
-                horizontal = LocalAppPadding.current.defaultAndHalf,
-                vertical = LocalAppPadding.current.default
-            ),
+        modifier = modifier.padding(vertical = LocalAppPadding.current.half),
         text = buildAnnotatedString {
             withStyle(
                 SpanStyle(
@@ -53,11 +44,7 @@ fun Header(
     )
 }
 
-@Preview(
-    name = "Header Preview",
-    showBackground = true,
-    backgroundColor = 0xFFFFFFFF
-)
+@Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
 @Composable
 fun HeaderPreview() {
     JapaneseHelperTheme {

@@ -8,24 +8,16 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 
-/**
- * A single renderable piece of an AI response.
- *
- * The model replies in lightweight Markdown, so the raw string is parsed into
- * these blocks before rendering instead of being shown verbatim.
- */
 sealed interface MarkdownBlock {
 
-    /** A `#`..`######` heading. [level] is 1 for `#`, 2 for `##` and so on. */
+    /** [level] is 1 for `#`, 2 for `##` and so on. */
     data class Heading(val level: Int, val text: AnnotatedString) : MarkdownBlock
 
-    /** A regular paragraph of text. */
     data class Paragraph(val text: AnnotatedString) : MarkdownBlock
 
-    /** A list item. [marker] is either a bullet glyph or an ordinal such as `2.`. */
+    /** [marker] is either a bullet glyph or an ordinal such as `2.`. */
     data class ListItem(val marker: String, val text: AnnotatedString) : MarkdownBlock
 
-    /** A thematic break written as `---`, `***` or `___`. */
     data object Divider : MarkdownBlock
 }
 
@@ -38,16 +30,9 @@ private val THEMATIC_BREAK_REGEX = Regex("""^\s*([-*_])\s*\1\s*\1[\s\-*_]*$""")
 private val BULLET_REGEX = Regex("""^\s*[-*+•]\s+(.*)$""")
 private val ORDERED_REGEX = Regex("""^\s*(\d{1,3}[.)])\s+(.*)$""")
 
-/** Inline emphasis: `**bold**`, `__bold__`, `*italic*` and `` `code` ``. */
 private val INLINE_REGEX = Regex("""\*\*(.+?)\*\*|__(.+?)__|\*(.+?)\*|`(.+?)`""")
 
-/**
- * Parses a lightweight Markdown [String] into a list of [MarkdownBlock]s.
- *
- * Supports headings, thematic breaks, bullet and ordered lists, paragraphs and
- * inline emphasis — the subset the model actually produces. Anything else is
- * kept as plain text, so nothing is ever lost or shown as raw syntax.
- */
+/** Unsupported syntax is kept as plain text, so nothing is ever lost. */
 fun String.parseMarkdownBlocks(): List<MarkdownBlock> {
     val blocks = mutableListOf<MarkdownBlock>()
     val paragraph = StringBuilder()
@@ -105,11 +90,7 @@ fun String.parseMarkdownBlocks(): List<MarkdownBlock> {
     return blocks.tidyDividers()
 }
 
-/**
- * Drops dividers that carry no meaning: leading, trailing and repeated ones.
- * A `---` the model emits right before it stops should not leave a stray rule
- * floating at the bottom of the section.
- */
+/** Drops leading, trailing and repeated dividers, which the model emits often. */
 private fun List<MarkdownBlock>.tidyDividers(): List<MarkdownBlock> =
     filterIndexed { index, block ->
         if (block !is MarkdownBlock.Divider) return@filterIndexed true
@@ -119,10 +100,6 @@ private fun List<MarkdownBlock>.tidyDividers(): List<MarkdownBlock> =
         hasContentBefore && hasContentAfter
     }
 
-/**
- * Converts inline Markdown emphasis into styled spans, so `**text**` is shown
- * in bold rather than surrounded by asterisks.
- */
 fun String.parseInlineMarkdown(): AnnotatedString = buildAnnotatedString {
     var cursor = 0
 

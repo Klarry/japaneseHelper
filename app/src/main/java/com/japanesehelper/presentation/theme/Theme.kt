@@ -26,7 +26,6 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun JapaneseHelperTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
@@ -44,7 +43,8 @@ fun JapaneseHelperTheme(
         LocalAppPadding provides Padding(),
         LocalAppFontSize provides FontSize(),
         LocalAppOffset provides Offset(),
-        LocalAppRadius provides Radius()
+        LocalAppRadius provides Radius(),
+        LocalAppSize provides Size()
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

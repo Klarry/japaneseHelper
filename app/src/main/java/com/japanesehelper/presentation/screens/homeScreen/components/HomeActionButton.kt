@@ -10,12 +10,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import com.japanesehelper.presentation.theme.LocalAppPadding
 
-/**
- * One of Home's entry-point buttons (Kanji Word Set / AI Explanation /
- * Temperature Description). Sharing this is what keeps all three the same
- * size and style, and lets a longer label like "Temperature Description"
- * wrap onto a second line instead of overflowing when three sit in a row.
- */
+private const val MAX_LABEL_LINES = 2
+
 @Composable
 fun HomeActionButton(
     text: String,
@@ -36,7 +32,7 @@ fun HomeActionButton(
             text = text,
             style = MaterialTheme.typography.labelMedium,
             textAlign = TextAlign.Center,
-            maxLines = 2,
+            maxLines = MAX_LABEL_LINES,
             overflow = TextOverflow.Ellipsis
         )
     }

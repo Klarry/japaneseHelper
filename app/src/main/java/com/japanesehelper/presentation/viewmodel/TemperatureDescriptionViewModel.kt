@@ -14,18 +14,7 @@ import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import javax.inject.Inject
 
-/**
- * Drives the Temperature Description screen: one section per supported
- * temperature, each with its own independent [TemperatureResultUiState].
- *
- * Unlike Kanji Word Set, nothing runs automatically when the screen opens -
- * every section starts at [TemperatureResultUiState.Idle] and only requests
- * its result once the user taps that section's "Run experiment" button (see
- * [run]). Running one temperature never affects the others.
- *
- * [kanji], [furigana] and [meaning] all come from the nav argument, never
- * hardcoded.
- */
+/** Nothing is requested until the user runs a temperature; each runs independently. */
 @HiltViewModel
 class TemperatureDescriptionViewModel @Inject constructor(
     private val temperatureDescriptionRepository: TemperatureDescriptionRepository,
@@ -41,11 +30,6 @@ class TemperatureDescriptionViewModel @Inject constructor(
     )
     val state: StateFlow<TemperatureDescriptionScreenState> = _state
 
-    /**
-     * Runs (or re-runs, e.g. after an [TemperatureResultUiState.Error]) the
-     * experiment for one [temperature]. Ignored while that temperature is
-     * already loading, so a double-tap never fires a duplicate request.
-     */
     fun run(temperature: Double) {
         if (_state.value.results[temperature] is TemperatureResultUiState.Loading) return
 
@@ -61,11 +45,7 @@ class TemperatureDescriptionViewModel @Inject constructor(
         }
     }
 
-    /**
-     * A plain [HttpException.message] is just "HTTP 400 Bad Request" - the
-     * actual reason (e.g. why the backend rejected the request) lives in the
-     * response body, so read that instead when it's present.
-     */
+    /** HttpException.message is only "HTTP 400 Bad Request"; the reason is in the body. */
     private fun Exception.toErrorMessage(): String {
         if (this is HttpException) {
             val body = response()?.errorBody()?.string()

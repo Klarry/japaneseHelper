@@ -4,7 +4,6 @@ import com.japanesehelper.android.datastore.VocabPreferences
 import com.japanesehelper.domain.model.RandomWord
 import com.japanesehelper.presentation.viewmodel.screendata.LevelState
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.StateFlow
 
 interface VocabRepository {
     val vocabPreferencesFlow: Flow<VocabPreferences>

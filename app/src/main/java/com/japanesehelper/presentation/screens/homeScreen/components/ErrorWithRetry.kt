@@ -1,8 +1,8 @@
 package com.japanesehelper.presentation.screens.homeScreen.components
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -13,14 +13,6 @@ import androidx.compose.ui.res.stringResource
 import com.japanesehelper.R
 import com.japanesehelper.presentation.theme.LocalAppPadding
 
-/**
- * The error state shared by every screen with a retryable request: the error
- * message (or a generic fallback when the backend didn't send one) and a
- * Retry button. One look and one behavior everywhere a request can fail.
- *
- * @param message The error message to show; falls back to a generic one when blank.
- * @param onRetry Called when the user taps Retry.
- */
 @Composable
 fun ErrorWithRetry(
     message: String,

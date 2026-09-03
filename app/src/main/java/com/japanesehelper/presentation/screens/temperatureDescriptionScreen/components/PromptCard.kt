@@ -12,15 +12,7 @@ import com.japanesehelper.R
 import com.japanesehelper.presentation.screens.homeScreen.components.TintedSurface
 import com.japanesehelper.presentation.theme.LocalAppPadding
 
-/**
- * The single prompt template used for all three temperature requests, with
- * the current kanji already substituted in. Deliberately styled smaller and
- * more muted than the kanji/results below it - it's context, not the focus.
- * Purely informational - nothing here is sent to the backend, which applies
- * the same template server-side; only the temperature differs per request.
- *
- * @param kanji The dynamic kanji/word shown inside the template text.
- */
+/** Display-only: the backend builds the real prompt, only the temperature varies per request. */
 @Composable
 fun PromptCard(kanji: String, modifier: Modifier = Modifier) {
     Column(

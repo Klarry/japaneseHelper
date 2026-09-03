@@ -17,12 +17,6 @@ private fun ExperimentType.label(): String = when (this) {
     ExperimentType.EXPERTS -> stringResource(R.string.kanji_word_set_tab_experts)
 }
 
-/**
- * The four experiment tabs (Direct | Step-by-step | Prompt | Experts).
- *
- * Purely presentational: selecting a tab only reports the choice via
- * [onTabSelected] - lazy loading and caching are the ViewModel's job.
- */
 @Composable
 fun ExperimentTabRow(
     selectedTab: ExperimentType,

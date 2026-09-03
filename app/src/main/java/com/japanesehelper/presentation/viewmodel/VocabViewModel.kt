@@ -82,11 +82,7 @@ class VocabViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Loads the picture for the current word. Only ever called on demand -
-     * from the "Create pic" button - never automatically, so opening a new
-     * word never triggers a search by itself.
-     */
+    /** On demand only - opening a new word never triggers an image search. */
     fun loadPicture(): Job? {
         val query = _homeState.value.randomWord?.meaning
         if (query.isNullOrEmpty()) return null
@@ -127,7 +123,6 @@ class VocabViewModel @Inject constructor(
         this.value = this.value.copy(picture = newPicture)
     }
 
-    /** Clears the picture back to "not requested yet" so the "Create pic" button reappears. */
     private fun resetPicture() {
         _homeState.value = _homeState.value.copy(picture = null)
     }

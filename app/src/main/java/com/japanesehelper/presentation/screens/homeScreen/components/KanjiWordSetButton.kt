@@ -12,17 +12,6 @@ import com.japanesehelper.R
 import com.japanesehelper.presentation.navigation.Screens
 import com.japanesehelper.presentation.viewmodel.VocabViewModel
 
-/**
- * Entry point into the Kanji Word Set screen.
- *
- * Always visible - it does not wait for the random word to load - but only
- * enabled once a word is available, since the screen needs a dynamic kanji
- * to open with (never hardcoded).
- *
- * @param navController Used to navigate to [Screens.KanjiWordSet].
- * @param modifier Optional [Modifier] for styling and layout adjustments.
- * @param viewModel The [VocabViewModel] instance providing the current random word.
- */
 @Composable
 fun KanjiWordSetButton(
     navController: NavController = rememberNavController(),

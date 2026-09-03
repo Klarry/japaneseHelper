@@ -14,17 +14,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * Drives the Kanji Word Set screen: one tab per [ExperimentType], each with
- * its own independent [TabUiState].
- *
- * All four experiments are requested concurrently, each in its own
- * coroutine, as soon as the screen opens (see [init]) - switching tabs never
- * waits on a network response, it just shows whatever that tab's state
- * already is. A tab that reached [TabUiState.Success] acts as its own cache
- * and is never refetched; a failed tab does not affect the others and can be
- * retried independently via [retry].
- */
 @HiltViewModel
 class KanjiWordSetViewModel @Inject constructor(
     private val kanjiWordSetRepository: KanjiWordSetRepository,
@@ -37,31 +26,21 @@ class KanjiWordSetViewModel @Inject constructor(
     val state: StateFlow<KanjiWordSetScreenState> = _state
 
     init {
-        // Fire all four experiments at once, each in its own coroutine, so no
-        // tab switch ever has to wait on a request that hasn't started yet.
-        ExperimentType.entries.forEach { experimentType -> loadTab(experimentType) }
+        ExperimentType.entries.forEach(::loadTab)
     }
 
-    /**
-     * Switches the active tab. Every tab is already loading or loaded from
-     * [init], so this never triggers a request by itself.
-     */
     fun selectTab(experimentType: ExperimentType) {
         _state.value = _state.value.copy(selectedTab = experimentType)
     }
 
-    /** Re-runs a tab that previously failed. */
     fun retry(experimentType: ExperimentType) {
         loadTab(experimentType)
     }
 
     private fun loadTab(experimentType: ExperimentType) {
+        // Success doubles as the cache; Loading means a request is already in flight.
         val currentTabState = _state.value.tabs[experimentType]
-
-        // Success = cache hit, nothing to do. Loading = already in flight, avoid a duplicate request.
-        if (currentTabState is TabUiState.Success || currentTabState is TabUiState.Loading) {
-            return
-        }
+        if (currentTabState is TabUiState.Success || currentTabState is TabUiState.Loading) return
 
         updateTab(experimentType, TabUiState.Loading)
 
