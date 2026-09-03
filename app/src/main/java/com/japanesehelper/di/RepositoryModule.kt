@@ -5,14 +5,17 @@ import com.japanesehelper.android.datastore.VocabPreferences
 import com.japanesehelper.data.remote.api.DescriptionApi
 import com.japanesehelper.data.remote.api.ImageSearchApi
 import com.japanesehelper.data.remote.api.KanjiWordSetApi
+import com.japanesehelper.data.remote.api.TemperatureDescriptionApi
 import com.japanesehelper.data.remote.api.VocabApi
 import com.japanesehelper.data.repository.DescriptionRepositoryImpl
 import com.japanesehelper.data.repository.ImageSearchRepositoryImpl
 import com.japanesehelper.data.repository.KanjiWordSetRepositoryImpl
+import com.japanesehelper.data.repository.TemperatureDescriptionRepositoryImpl
 import com.japanesehelper.data.repository.VocabRepositoryImpl
 import com.japanesehelper.domain.repository.DescriptionRepository
 import com.japanesehelper.domain.repository.ImageSearchRepository
 import com.japanesehelper.domain.repository.KanjiWordSetRepository
+import com.japanesehelper.domain.repository.TemperatureDescriptionRepository
 import com.japanesehelper.domain.repository.VocabRepository
 import dagger.Module
 import dagger.Provides
@@ -58,5 +61,13 @@ class RepositoryModule {
         api: KanjiWordSetApi,
     ): KanjiWordSetRepository {
         return KanjiWordSetRepositoryImpl(api)
+    }
+
+    @Provides
+    @Singleton
+    fun provideTemperatureDescriptionRepository(
+        api: TemperatureDescriptionApi,
+    ): TemperatureDescriptionRepository {
+        return TemperatureDescriptionRepositoryImpl(api)
     }
 }

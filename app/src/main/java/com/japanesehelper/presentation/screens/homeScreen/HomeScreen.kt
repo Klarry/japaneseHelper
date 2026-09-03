@@ -19,6 +19,7 @@ import com.japanesehelper.presentation.screens.homeScreen.components.Header
 import com.japanesehelper.presentation.screens.homeScreen.components.KanjiWordSetButton
 import com.japanesehelper.presentation.screens.homeScreen.components.LevelDropdownMenu
 import com.japanesehelper.presentation.screens.homeScreen.components.RandomWordCard
+import com.japanesehelper.presentation.screens.homeScreen.components.TemperatureDescriptionButton
 import com.japanesehelper.presentation.theme.JapaneseHelperTheme
 import com.japanesehelper.presentation.theme.LocalAppPadding
 
@@ -42,6 +43,7 @@ fun HomeScreen(navController: NavController) {
             ) {
                 KanjiWordSetButton(navController = navController, modifier = Modifier.weight(1f))
                 AiExplanationButton(navController = navController, modifier = Modifier.weight(1f))
+                TemperatureDescriptionButton(navController = navController, modifier = Modifier.weight(1f))
             }
 
             LevelDropdownMenu(modifier = modifier)

@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.japanesehelper.presentation.screens.aiExplanationScreen.AiExplanationScreen
 import com.japanesehelper.presentation.screens.homeScreen.HomeScreen
 import com.japanesehelper.presentation.screens.kanjiWordSetScreen.KanjiWordSetScreen
+import com.japanesehelper.presentation.screens.temperatureDescriptionScreen.TemperatureDescriptionScreen
 
 @Composable
 fun AppNavHost() {
@@ -34,6 +35,16 @@ fun AppNavHost() {
             )
         ) {
             AiExplanationScreen(navController)
+        }
+        composable(
+            route = Screens.TemperatureDescription.route,
+            arguments = listOf(
+                navArgument(Screens.TemperatureDescription.ARG_KANJI) { type = NavType.StringType },
+                navArgument(Screens.TemperatureDescription.ARG_FURIGANA) { type = NavType.StringType },
+                navArgument(Screens.TemperatureDescription.ARG_MEANING) { type = NavType.StringType }
+            )
+        ) {
+            TemperatureDescriptionScreen(navController)
         }
     }
 }
