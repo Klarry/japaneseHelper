@@ -9,7 +9,6 @@ private const val FURIGANA_ARG_KEY = "furigana"
 
 sealed class Screens(val route: String) {
     data object Home : Screens("home")
-    data object Details : Screens("details")
 
     data object KanjiWordSet : Screens("kanji_word_set/{$KANJI_ARG_KEY}") {
         const val ARG_KANJI = KANJI_ARG_KEY

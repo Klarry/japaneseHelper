@@ -1,7 +1,5 @@
 package com.japanesehelper.presentation.screens.homeScreen.components
 
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,15 +33,14 @@ fun AiExplanationButton(
     val word = state.randomWord?.word
     val meaning = state.randomWord?.meaning
 
-    OutlinedButton(
+    HomeActionButton(
+        text = stringResource(R.string.home_ai_explanation_button),
+        enabled = !word.isNullOrEmpty() && !meaning.isNullOrEmpty(),
         onClick = {
             if (!word.isNullOrEmpty() && !meaning.isNullOrEmpty()) {
                 navController.navigate(Screens.AiExplanation.createRoute(word, meaning))
             }
         },
-        enabled = !word.isNullOrEmpty() && !meaning.isNullOrEmpty(),
         modifier = modifier
-    ) {
-        Text(stringResource(R.string.home_ai_explanation_button))
-    }
+    )
 }

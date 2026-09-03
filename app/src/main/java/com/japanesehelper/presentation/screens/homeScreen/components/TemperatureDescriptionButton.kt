@@ -1,7 +1,5 @@
 package com.japanesehelper.presentation.screens.homeScreen.components
 
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -38,15 +36,14 @@ fun TemperatureDescriptionButton(
     val furigana = state.randomWord?.furigana.orEmpty()
     val meaning = state.randomWord?.meaning.orEmpty()
 
-    OutlinedButton(
+    HomeActionButton(
+        text = stringResource(R.string.home_temperature_description_button),
+        enabled = word != null,
         onClick = {
             word?.let {
                 navController.navigate(Screens.TemperatureDescription.createRoute(it, furigana, meaning))
             }
         },
-        enabled = word != null,
         modifier = modifier
-    ) {
-        Text(stringResource(R.string.home_temperature_description_button))
-    }
+    )
 }

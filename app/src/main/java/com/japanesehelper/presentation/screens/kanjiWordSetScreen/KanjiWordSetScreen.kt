@@ -5,12 +5,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -22,6 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.japanesehelper.R
+import com.japanesehelper.presentation.screens.homeScreen.components.ScreenTopBar
 import com.japanesehelper.presentation.screens.kanjiWordSetScreen.components.ExperimentTabRow
 import com.japanesehelper.presentation.screens.kanjiWordSetScreen.components.PromptResponseSection
 import com.japanesehelper.presentation.theme.LocalAppFontSize
@@ -40,7 +37,6 @@ import com.japanesehelper.presentation.viewmodel.screendata.TabUiState
  * @param viewModel Scoped to this screen's nav back stack entry; the kanji
  * comes from the nav argument, never hardcoded.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KanjiWordSetScreen(
     navController: NavController,
@@ -51,16 +47,9 @@ fun KanjiWordSetScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.kanji_word_set_title)) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Text(
-                            text = "←",
-                            style = MaterialTheme.typography.headlineSmall
-                        )
-                    }
-                }
+            ScreenTopBar(
+                title = stringResource(R.string.kanji_word_set_title),
+                onBack = { navController.popBackStack() }
             )
         }
     ) { innerPadding ->

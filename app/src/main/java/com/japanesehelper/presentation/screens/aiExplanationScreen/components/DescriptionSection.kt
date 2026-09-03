@@ -1,23 +1,19 @@
 package com.japanesehelper.presentation.screens.aiExplanationScreen.components
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import com.japanesehelper.R
-import com.japanesehelper.presentation.screens.homeScreen.components.CircularProgressIndicator
+import com.japanesehelper.presentation.screens.homeScreen.components.CenteredLoadingIndicator
+import com.japanesehelper.presentation.screens.homeScreen.components.ErrorWithRetry
+import com.japanesehelper.presentation.screens.homeScreen.components.LabeledBlock
 import com.japanesehelper.presentation.screens.homeScreen.components.MarkdownText
 import com.japanesehelper.presentation.theme.JapaneseHelperTheme
 import com.japanesehelper.presentation.theme.LocalAppPadding
@@ -47,33 +43,9 @@ fun DescriptionSection(
     modifier: Modifier = Modifier
 ) {
     when (state) {
-        is DescriptionLoading -> {
-            Box(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .padding(vertical = LocalAppPadding.current.default),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        }
+        is DescriptionLoading -> CenteredLoadingIndicator(modifier)
 
-        is DescriptionError -> {
-            Column(
-                modifier = modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(LocalAppPadding.current.default)
-            ) {
-                Text(
-                    text = state.message.ifEmpty { stringResource(R.string.ai_explanation_generic_error) },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.error
-                )
-                Button(onClick = onRetry) {
-                    Text(stringResource(R.string.ai_explanation_retry))
-                }
-            }
-        }
+        is DescriptionError -> ErrorWithRetry(message = state.message, onRetry = onRetry, modifier = modifier)
 
         is DescriptionSuccess -> {
             Column(
@@ -82,47 +54,14 @@ fun DescriptionSection(
             ) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                DescriptionBlock(
-                    caption = stringResource(R.string.ai_explanation_without_constraints_caption),
-                    text = state.uncontrolled
-                )
+                LabeledBlock(caption = stringResource(R.string.ai_explanation_without_constraints_caption)) {
+                    MarkdownText(markdown = state.uncontrolled)
+                }
 
-                DescriptionBlock(
-                    caption = stringResource(R.string.ai_explanation_with_constraints_caption),
-                    text = state.controlled
-                )
+                LabeledBlock(caption = stringResource(R.string.ai_explanation_with_constraints_caption)) {
+                    MarkdownText(markdown = state.controlled)
+                }
             }
-        }
-    }
-}
-
-/**
- * One labelled response: a subsection title followed by the rendered Markdown
- * body on a tinted surface, so the two answers read as separate, tidy units.
- */
-@Composable
-private fun DescriptionBlock(caption: String, text: String) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(LocalAppPadding.current.half)
-    ) {
-        Text(
-            text = caption.uppercase(),
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        ) {
-            MarkdownText(
-                markdown = text,
-                modifier = Modifier.padding(LocalAppPadding.current.default)
-            )
         }
     }
 }

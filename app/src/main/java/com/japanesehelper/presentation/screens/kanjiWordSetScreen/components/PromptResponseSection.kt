@@ -1,23 +1,18 @@
 package com.japanesehelper.presentation.screens.kanjiWordSetScreen.components
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import com.japanesehelper.R
 import com.japanesehelper.domain.model.KanjiWordSet
-import com.japanesehelper.presentation.screens.homeScreen.components.CircularProgressIndicator
+import com.japanesehelper.presentation.screens.homeScreen.components.CenteredLoadingIndicator
+import com.japanesehelper.presentation.screens.homeScreen.components.ErrorWithRetry
+import com.japanesehelper.presentation.screens.homeScreen.components.LabeledBlock
 import com.japanesehelper.presentation.theme.LocalAppPadding
 import com.japanesehelper.presentation.viewmodel.screendata.TabUiState
 
@@ -37,33 +32,9 @@ fun PromptResponseSection(
     when (state) {
         is TabUiState.Idle -> Unit
 
-        is TabUiState.Loading -> {
-            Box(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .padding(vertical = LocalAppPadding.current.default),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        }
+        is TabUiState.Loading -> CenteredLoadingIndicator(modifier)
 
-        is TabUiState.Error -> {
-            Column(
-                modifier = modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(LocalAppPadding.current.default)
-            ) {
-                Text(
-                    text = state.message.ifEmpty { stringResource(R.string.kanji_word_set_generic_error) },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.error
-                )
-                Button(onClick = onRetry) {
-                    Text(stringResource(R.string.kanji_word_set_retry))
-                }
-            }
-        }
+        is TabUiState.Error -> ErrorWithRetry(message = state.message, onRetry = onRetry, modifier = modifier)
 
         is TabUiState.Success -> {
             Column(
@@ -97,44 +68,5 @@ private fun ResponseDetails(result: KanjiWordSet) {
             text = stringResource(R.string.kanji_word_set_value_row, result.value),
             style = MaterialTheme.typography.bodyLarge
         )
-    }
-}
-
-/**
- * One labelled block framed with dividers, matching the screen's PROMPT /
- * RESPONSE wireframe: an uppercase caption, then the content on a tinted
- * surface between a divider above and below - the same visual language as
- * [com.japanesehelper.presentation.screens.aiExplanationScreen.components.DescriptionSection].
- */
-@Composable
-private fun LabeledBlock(
-    caption: String,
-    content: @Composable () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(LocalAppPadding.current.half)
-    ) {
-        Text(
-            text = caption.uppercase(),
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        ) {
-            Box(modifier = Modifier.padding(LocalAppPadding.current.default)) {
-                content()
-            }
-        }
-
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     }
 }

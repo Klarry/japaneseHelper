@@ -1,7 +1,5 @@
 package com.japanesehelper.presentation.screens.homeScreen.components
 
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,11 +32,10 @@ fun KanjiWordSetButton(
     val state by viewModel.homeState.collectAsState()
     val word = state.randomWord?.word
 
-    OutlinedButton(
-        onClick = { word?.let { navController.navigate(Screens.KanjiWordSet.createRoute(it)) } },
+    HomeActionButton(
+        text = stringResource(R.string.home_kanji_word_set_button),
         enabled = word != null,
+        onClick = { word?.let { navController.navigate(Screens.KanjiWordSet.createRoute(it)) } },
         modifier = modifier
-    ) {
-        Text(stringResource(R.string.home_kanji_word_set_button))
-    }
+    )
 }
