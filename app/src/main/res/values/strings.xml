@@ -15,6 +15,7 @@
     <string name="home_ai_explanation_button">AI Explanation</string>
     <string name="home_create_picture_button">Create pic</string>
     <string name="home_temperature_description_button">Temperature Description</string>
+    <string name="home_model_comparison_button">Model Comparison</string>
 
     <string name="ai_explanation_title">AI Explanation</string>
     <string name="ai_explanation_without_constraints_caption">Without constraints</string>
@@ -36,4 +37,18 @@
     <string name="temperature_description_prompt_label">Same prompt for all temperatures</string>
     <string name="temperature_description_section_title">Temperature %1$s</string>
     <string name="temperature_description_run_button">Run experiment</string>
+
+    <string name="model_comparison_title">Model Comparison</string>
+    <string name="model_comparison_description">Compare how different AI models generate a sentence using the same kanji.</string>
+    <string name="model_comparison_prompt_template">Compose one natural Japanese sentence using the kanji %1$s.\nUse common vocabulary and a language level around N4–N3.\nAdd a Russian translation.</string>
+    <string name="model_comparison_prompt_label">Same prompt for all models</string>
+    <string name="model_comparison_run_button">Run comparison</string>
+    <string name="model_comparison_not_run_yet">Not run yet</string>
+    <string name="model_comparison_card_title">%1$s — %2$s</string>
+    <string name="model_comparison_time_row">Time: %1$d ms</string>
+    <string name="model_comparison_input_tokens_row">Input tokens: %1$s</string>
+    <string name="model_comparison_output_tokens_row">Output tokens: %1$s</string>
+    <string name="model_comparison_strength_light">Light</string>
+    <string name="model_comparison_strength_standard">Standard</string>
+    <string name="model_comparison_strength_pro">Pro</string>
 </resources>

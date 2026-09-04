@@ -34,4 +34,15 @@ sealed class Screens(val route: String) {
         fun createRoute(kanji: String, furigana: String, meaning: String): String =
             "temperature_description/${Uri.encode(kanji)}/${Uri.encode(furigana)}/${Uri.encode(meaning)}"
     }
+
+    data object ModelComparison : Screens(
+        "model_comparison/{$KANJI_ARG_KEY}/{$FURIGANA_ARG_KEY}/{$MEANING_ARG_KEY}"
+    ) {
+        const val ARG_KANJI = KANJI_ARG_KEY
+        const val ARG_FURIGANA = FURIGANA_ARG_KEY
+        const val ARG_MEANING = MEANING_ARG_KEY
+
+        fun createRoute(kanji: String, furigana: String, meaning: String): String =
+            "model_comparison/${Uri.encode(kanji)}/${Uri.encode(furigana)}/${Uri.encode(meaning)}"
+    }
 }
