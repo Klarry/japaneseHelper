@@ -2,18 +2,21 @@ package com.japanesehelper.di
 
 import androidx.datastore.core.DataStore
 import com.japanesehelper.android.datastore.VocabPreferences
+import com.japanesehelper.data.remote.api.AgentApi
 import com.japanesehelper.data.remote.api.DescriptionApi
 import com.japanesehelper.data.remote.api.ImageSearchApi
 import com.japanesehelper.data.remote.api.KanjiWordSetApi
 import com.japanesehelper.data.remote.api.ModelComparisonApi
 import com.japanesehelper.data.remote.api.TemperatureDescriptionApi
 import com.japanesehelper.data.remote.api.VocabApi
+import com.japanesehelper.data.repository.AgentRepositoryImpl
 import com.japanesehelper.data.repository.DescriptionRepositoryImpl
 import com.japanesehelper.data.repository.ImageSearchRepositoryImpl
 import com.japanesehelper.data.repository.KanjiWordSetRepositoryImpl
 import com.japanesehelper.data.repository.ModelComparisonRepositoryImpl
 import com.japanesehelper.data.repository.TemperatureDescriptionRepositoryImpl
 import com.japanesehelper.data.repository.VocabRepositoryImpl
+import com.japanesehelper.domain.repository.AgentRepository
 import com.japanesehelper.domain.repository.DescriptionRepository
 import com.japanesehelper.domain.repository.ImageSearchRepository
 import com.japanesehelper.domain.repository.KanjiWordSetRepository
@@ -80,5 +83,13 @@ class RepositoryModule {
         api: ModelComparisonApi,
     ): ModelComparisonRepository {
         return ModelComparisonRepositoryImpl(api)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAgentRepository(
+        api: AgentApi,
+    ): AgentRepository {
+        return AgentRepositoryImpl(api)
     }
 }

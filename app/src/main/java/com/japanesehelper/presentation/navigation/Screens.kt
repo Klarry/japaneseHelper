@@ -45,4 +45,6 @@ sealed class Screens(val route: String) {
         fun createRoute(kanji: String, furigana: String, meaning: String): String =
             "model_comparison/${Uri.encode(kanji)}/${Uri.encode(furigana)}/${Uri.encode(meaning)}"
     }
+
+    data object AiAgent : Screens("ai_agent")
 }

@@ -16,6 +16,7 @@
     <string name="home_create_picture_button">Create pic</string>
     <string name="home_temperature_description_button">Temperature Description</string>
     <string name="home_model_comparison_button">Model Comparison</string>
+    <string name="home_ai_agent_button">AI Agent</string>
 
     <string name="ai_explanation_title">AI Explanation</string>
     <string name="ai_explanation_without_constraints_caption">Without constraints</string>
@@ -51,4 +52,10 @@
     <string name="model_comparison_strength_light">Light</string>
     <string name="model_comparison_strength_standard">Standard</string>
     <string name="model_comparison_strength_pro">Pro</string>
+
+    <string name="ai_agent_title">AI Agent</string>
+    <string name="ai_agent_description">Ask the Japanese Learning Agent</string>
+    <string name="ai_agent_input_placeholder">Ask something about Japanese...</string>
+    <string name="ai_agent_ask_button">Ask Agent</string>
+    <string name="ai_agent_response_label">Agent response</string>
 </resources>

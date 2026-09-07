@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
+import com.japanesehelper.presentation.screens.homeScreen.components.AiAgentButton
 import com.japanesehelper.presentation.screens.homeScreen.components.AiExplanationButton
 import com.japanesehelper.presentation.screens.homeScreen.components.Header
 import com.japanesehelper.presentation.screens.homeScreen.components.KanjiWordSetButton
@@ -45,6 +46,8 @@ fun HomeScreen(navController: NavController) {
                 TemperatureDescriptionButton(navController = navController, modifier = Modifier.weight(1f))
                 ModelComparisonButton(navController = navController, modifier = Modifier.weight(1f))
             }
+
+            AiAgentButton(navController = navController, modifier = Modifier.fillMaxWidth())
 
             LevelDropdownMenu()
             RandomWordCard()

@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.japanesehelper.presentation.screens.aiAgentScreen.AiAgentScreen
 import com.japanesehelper.presentation.screens.aiExplanationScreen.AiExplanationScreen
 import com.japanesehelper.presentation.screens.homeScreen.HomeScreen
 import com.japanesehelper.presentation.screens.kanjiWordSetScreen.KanjiWordSetScreen
@@ -56,6 +57,9 @@ fun AppNavHost() {
             )
         ) {
             ModelComparisonScreen(navController)
+        }
+        composable(Screens.AiAgent.route) {
+            AiAgentScreen(navController)
         }
     }
 }
