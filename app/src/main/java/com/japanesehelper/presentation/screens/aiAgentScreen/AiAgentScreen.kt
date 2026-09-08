@@ -12,17 +12,21 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.japanesehelper.R
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.AgentConversation
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.AskAgentButton
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.ClearHistoryButton
 import com.japanesehelper.presentation.screens.homeScreen.components.ErrorWithRetry
-import com.japanesehelper.presentation.screens.homeScreen.components.LabeledBlock
 import com.japanesehelper.presentation.screens.homeScreen.components.ScreenScaffold
 import com.japanesehelper.presentation.viewmodel.AiAgentViewModel
-import com.japanesehelper.presentation.viewmodel.screendata.AgentChatUiState
+import com.japanesehelper.presentation.viewmodel.screendata.AgentHistoryUiState
 
 /**
- * Day 6: a minimal single-request demo of the backend's JapaneseLearningAgent.
- * The user's message is sent to POST /agent/chat unchanged - no prompt is
- * built here. Nothing is requested until "Ask Agent" is tapped.
+ * A simple, persistent chat with the backend's JapaneseLearningAgent.
+ * History is loaded from GET /agent/history when the screen opens and
+ * restored as-is; every send appends to it; "Clear History" empties it via
+ * DELETE /agent/history. The user's message is always sent to POST
+ * /agent/chat unchanged - no prompt is built here, that belongs to the
+ * backend.
  */
 @Composable
 fun AiAgentScreen(
@@ -41,6 +45,11 @@ fun AiAgentScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
+        AgentConversation(
+            historyState = state.history,
+            onRetryLoad = viewModel::loadHistory
+        )
+
         OutlinedTextField(
             value = state.message,
             onValueChange = viewModel::onMessageChanged,
@@ -51,20 +60,25 @@ fun AiAgentScreen(
 
         AskAgentButton(
             canAsk = state.message.isNotBlank(),
-            isLoading = state.result is AgentChatUiState.Loading,
-            onAsk = viewModel::ask
+            isLoading = state.isSending,
+            onAsk = viewModel::send
         )
 
-        when (val result = state.result) {
-            is AgentChatUiState.Idle, is AgentChatUiState.Loading -> Unit
+        val sendError = state.sendError
+        if (sendError != null) {
+            ErrorWithRetry(message = sendError, onRetry = viewModel::send)
+        }
 
-            is AgentChatUiState.Error ->
-                ErrorWithRetry(message = result.message, onRetry = viewModel::ask)
+        val loadedMessages = (state.history as? AgentHistoryUiState.Loaded)?.messages
+        ClearHistoryButton(
+            enabled = !loadedMessages.isNullOrEmpty(),
+            isLoading = state.isClearingHistory,
+            onClear = viewModel::clearHistory
+        )
 
-            is AgentChatUiState.Success ->
-                LabeledBlock(caption = stringResource(R.string.ai_agent_response_label)) {
-                    Text(text = result.response, style = MaterialTheme.typography.bodyLarge)
-                }
+        val clearError = state.clearHistoryError
+        if (clearError != null) {
+            ErrorWithRetry(message = clearError, onRetry = viewModel::clearHistory)
         }
     }
 }
