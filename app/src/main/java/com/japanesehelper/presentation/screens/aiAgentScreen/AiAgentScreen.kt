@@ -15,6 +15,7 @@ import com.japanesehelper.R
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.AgentConversation
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.AskAgentButton
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ClearHistoryButton
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.TokenUsageSection
 import com.japanesehelper.presentation.screens.homeScreen.components.ErrorWithRetry
 import com.japanesehelper.presentation.screens.homeScreen.components.ScreenScaffold
 import com.japanesehelper.presentation.viewmodel.AiAgentViewModel
@@ -67,6 +68,11 @@ fun AiAgentScreen(
         val sendError = state.sendError
         if (sendError != null) {
             ErrorWithRetry(message = sendError, onRetry = viewModel::send)
+        }
+
+        val lastUsage = state.lastUsage
+        if (lastUsage != null) {
+            TokenUsageSection(usage = lastUsage)
         }
 
         val loadedMessages = (state.history as? AgentHistoryUiState.Loaded)?.messages

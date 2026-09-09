@@ -3,6 +3,7 @@ package com.japanesehelper
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentReply
+import com.japanesehelper.domain.model.AgentTokenUsage
 import com.japanesehelper.domain.repository.AgentRepository
 import com.japanesehelper.presentation.viewmodel.AiAgentViewModel
 import com.japanesehelper.presentation.viewmodel.screendata.AgentHistoryUiState
@@ -31,6 +32,20 @@ class AiAgentViewModelTest {
 
     private fun createViewModel(repository: AgentRepository = this.repository) =
         AiAgentViewModel(agentRepository = repository)
+
+    private fun usage(
+        currentRequestTokens: Int? = 10,
+        historyTokens: Int? = 0,
+        responseTokens: Int? = 5,
+        totalTokens: Int? = 15
+    ) = AgentTokenUsage(
+        currentRequestTokens = currentRequestTokens,
+        historyTokens = historyTokens,
+        responseTokens = responseTokens,
+        totalTokens = totalTokens
+    )
+
+    private fun reply(text: String, usage: AgentTokenUsage = usage()) = AgentReply(text, usage)
 
     // --- initial load -------------------------------------------------
 
@@ -120,7 +135,7 @@ class AiAgentViewModelTest {
         whenever(repository.getHistory()).thenReturn(
             listOf(AgentMessage(AgentMessageRole.ASSISTANT, "earlier answer"))
         )
-        whenever(repository.chat(any())).thenReturn(AgentReply("answer"))
+        whenever(repository.chat(any())).thenReturn(reply("answer"))
 
         val viewModel = createViewModel()
         viewModel.onMessageChanged("  Give me another example for it.  ")
@@ -132,7 +147,7 @@ class AiAgentViewModelTest {
     @Test
     fun `a successful send appends the user message and the reply, and clears the input`() = runTest {
         whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any())).thenReturn(AgentReply("学 means to study."))
+        whenever(repository.chat(any())).thenReturn(reply("学 means to study."))
 
         val viewModel = createViewModel()
         viewModel.onMessageChanged("Explain the kanji 学")
@@ -155,7 +170,7 @@ class AiAgentViewModelTest {
                 AgentMessage(AgentMessageRole.ASSISTANT, "学 means to study.")
             )
         )
-        whenever(repository.chat(any())).thenReturn(AgentReply("学校 means school."))
+        whenever(repository.chat(any())).thenReturn(reply("学校 means school."))
 
         val viewModel = createViewModel()
         viewModel.onMessageChanged("Give me another example for it.")
@@ -205,7 +220,7 @@ class AiAgentViewModelTest {
         viewModel.send()
         assertEquals(1, callCount)
 
-        deferred.complete(AgentReply("answer"))
+        deferred.complete(reply("answer"))
         assertFalse(viewModel.state.value.isSending)
     }
 
@@ -248,7 +263,7 @@ class AiAgentViewModelTest {
         val deferred = CompletableDeferred<Unit>()
         var callCount = 0
         val fakeRepository = object : AgentRepository {
-            override suspend fun chat(message: String): AgentReply = AgentReply("unused")
+            override suspend fun chat(message: String): AgentReply = reply("unused")
             override suspend fun getHistory(): List<AgentMessage> = emptyList()
             override suspend fun clearHistory() {
                 callCount++
@@ -265,5 +280,123 @@ class AiAgentViewModelTest {
         assertEquals(1, callCount)
 
         deferred.complete(Unit)
+    }
+
+    // --- token usage ------------------------------------------------------
+
+    @Test
+    fun `there is no token usage to show before anything is sent`() = runTest {
+        whenever(repository.getHistory()).thenReturn(emptyList())
+
+        val viewModel = createViewModel()
+
+        assertEquals(null, viewModel.state.value.lastUsage)
+    }
+
+    @Test
+    fun `a successful send shows the real usage numbers the backend reported`() = runTest {
+        // Scenario 1 (short dialogue): small, real numbers from the backend.
+        whenever(repository.getHistory()).thenReturn(emptyList())
+        whenever(repository.chat(any())).thenReturn(
+            reply("answer", usage(currentRequestTokens = 42, historyTokens = 0, responseTokens = 12, totalTokens = 54))
+        )
+
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Explain the kanji 学")
+        viewModel.send()
+
+        val shown = viewModel.state.value.lastUsage
+        assertEquals(42, shown?.currentRequestTokens)
+        assertEquals(0, shown?.historyTokens)
+        assertEquals(12, shown?.responseTokens)
+        assertEquals(54, shown?.totalTokens)
+    }
+
+    @Test
+    fun `usage is replaced, not accumulated, after each send`() = runTest {
+        // Scenario 2 (long dialogue): history and total tokens keep growing,
+        // and the screen must show the latest numbers, not a running sum.
+        whenever(repository.getHistory()).thenReturn(emptyList())
+        whenever(repository.chat(any())).thenReturn(
+            reply("first answer", usage(currentRequestTokens = 20, historyTokens = 0, responseTokens = 8, totalTokens = 28))
+        )
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("first message")
+        viewModel.send()
+        assertEquals(28, viewModel.state.value.lastUsage?.totalTokens)
+
+        whenever(repository.chat(any())).thenReturn(
+            reply(
+                "second answer",
+                usage(currentRequestTokens = 25, historyTokens = 60, responseTokens = 10, totalTokens = 95)
+            )
+        )
+        viewModel.onMessageChanged("second message")
+        viewModel.send()
+
+        val shown = viewModel.state.value.lastUsage
+        assertEquals(60, shown?.historyTokens)
+        assertEquals(95, shown?.totalTokens)
+        assertTrue(95 > 28) // total grew across turns, as expected for a growing conversation
+    }
+
+    @Test
+    fun `usage fields the backend could not report come through as null, not a guess`() = runTest {
+        whenever(repository.getHistory()).thenReturn(emptyList())
+        whenever(repository.chat(any())).thenReturn(
+            reply("answer", usage(currentRequestTokens = null, historyTokens = 10, responseTokens = 6, totalTokens = null))
+        )
+
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Explain 学")
+        viewModel.send()
+
+        val shown = viewModel.state.value.lastUsage
+        assertEquals(null, shown?.currentRequestTokens)
+        assertEquals(null, shown?.totalTokens)
+        assertEquals(10, shown?.historyTokens)
+    }
+
+    @Test
+    fun `a context-limit error is shown to the user and does not touch prior usage or history`() = runTest {
+        // Scenario 3: a conversation too long for the model's context window
+        // must surface as a clear, visible error - not a crash.
+        whenever(repository.getHistory()).thenReturn(emptyList())
+        whenever(repository.chat(any())).thenReturn(
+            reply("first answer", usage(totalTokens = 30))
+        )
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("first message")
+        viewModel.send()
+
+        whenever(repository.chat(any())).thenThrow(
+            RuntimeException("The input token count exceeds the maximum number of tokens allowed")
+        )
+        viewModel.onMessageChanged("one message too many")
+        viewModel.send()
+
+        assertEquals(
+            "The input token count exceeds the maximum number of tokens allowed",
+            viewModel.state.value.sendError
+        )
+        // The last successful usage and the conversation so far are untouched.
+        assertEquals(30, viewModel.state.value.lastUsage?.totalTokens)
+        assertEquals(2, (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.size)
+    }
+
+    @Test
+    fun `clearing history also clears the shown usage stats`() = runTest {
+        whenever(repository.getHistory()).thenReturn(emptyList())
+        whenever(repository.chat(any())).thenReturn(reply("answer"))
+        whenever(repository.clearHistory()).thenReturn(Unit)
+
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Explain 学")
+        viewModel.send()
+        assertTrue(viewModel.state.value.lastUsage != null)
+
+        viewModel.clearHistory()
+
+        assertEquals(null, viewModel.state.value.lastUsage)
     }
 }

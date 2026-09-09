@@ -68,7 +68,8 @@ class AiAgentViewModel @Inject constructor(
                 _state.value = _state.value.copy(
                     message = "",
                     isSending = false,
-                    history = AgentHistoryUiState.Loaded(updatedMessages)
+                    history = AgentHistoryUiState.Loaded(updatedMessages),
+                    lastUsage = reply.usage
                 )
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 _state.value = _state.value.copy(isSending = false, sendError = e.toErrorMessage())
@@ -86,7 +87,8 @@ class AiAgentViewModel @Inject constructor(
                 agentRepository.clearHistory()
                 _state.value = _state.value.copy(
                     isClearingHistory = false,
-                    history = AgentHistoryUiState.Loaded(emptyList())
+                    history = AgentHistoryUiState.Loaded(emptyList()),
+                    lastUsage = null
                 )
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 _state.value = _state.value.copy(

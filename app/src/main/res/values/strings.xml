@@ -61,4 +61,9 @@
     <string name="ai_agent_role_agent">Agent</string>
     <string name="ai_agent_empty_state">No conversation yet. Ask something to get started.</string>
     <string name="ai_agent_clear_history_button">Clear History</string>
+    <string name="ai_agent_usage_title">Token usage</string>
+    <string name="ai_agent_usage_current_request_row">Current request: %1$s</string>
+    <string name="ai_agent_usage_history_row">History: %1$s</string>
+    <string name="ai_agent_usage_response_row">Response: %1$s</string>
+    <string name="ai_agent_usage_total_row">Total: %1$s</string>
 </resources>
