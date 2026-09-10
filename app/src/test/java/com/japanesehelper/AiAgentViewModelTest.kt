@@ -49,11 +49,11 @@ class AiAgentViewModelTest {
     private fun compression(
         enabled: Boolean = false,
         summaryTokens: Int? = 0,
-        recentMessages: Int = 2
+        messagesSent: Int = 2
     ) = AgentCompressionStatus(
         enabled = enabled,
         summaryTokens = summaryTokens,
-        recentMessages = recentMessages
+        messagesSent = messagesSent
     )
 
     private fun reply(
@@ -471,7 +471,7 @@ class AiAgentViewModelTest {
     fun `the compression status shown is the one the backend reported`() = runTest {
         whenever(repository.getHistory()).thenReturn(emptyList())
         whenever(repository.chat(any(), any())).thenReturn(
-            reply("answer", compression = compression(enabled = true, summaryTokens = 1245, recentMessages = 6))
+            reply("answer", compression = compression(enabled = true, summaryTokens = 1245, messagesSent = 6))
         )
 
         val viewModel = createViewModel()
@@ -482,7 +482,7 @@ class AiAgentViewModelTest {
         val shown = viewModel.state.value.lastCompression
         assertEquals(true, shown?.enabled)
         assertEquals(1245, shown?.summaryTokens)
-        assertEquals(6, shown?.recentMessages)
+        assertEquals(6, shown?.messagesSent)
     }
 
     @Test
@@ -495,7 +495,7 @@ class AiAgentViewModelTest {
             reply(
                 "answer",
                 usage(currentRequestTokens = 17, historyTokens = 3200, responseTokens = 300, totalTokens = 3517),
-                compression(enabled = false, summaryTokens = 0, recentMessages = 24)
+                compression(enabled = false, summaryTokens = 0, messagesSent = 24)
             )
         )
         val viewModel = createViewModel()
@@ -507,7 +507,7 @@ class AiAgentViewModelTest {
             reply(
                 "answer",
                 usage(currentRequestTokens = 17, historyTokens = 900, responseTokens = 300, totalTokens = 1217),
-                compression(enabled = true, summaryTokens = 240, recentMessages = 6)
+                compression(enabled = true, summaryTokens = 240, messagesSent = 6)
             )
         )
         viewModel.onCompressionEnabledChanged(true)
@@ -518,14 +518,14 @@ class AiAgentViewModelTest {
         assertEquals(3200, withoutCompression?.historyTokens)
         assertEquals(900, withCompression?.historyTokens)
         assertTrue(withCompression!!.totalTokens!! < withoutCompression!!.totalTokens!!)
-        assertEquals(6, viewModel.state.value.lastCompression?.recentMessages)
+        assertEquals(6, viewModel.state.value.lastCompression?.messagesSent)
     }
 
     @Test
     fun `clearing history also clears the shown compression status`() = runTest {
         whenever(repository.getHistory()).thenReturn(emptyList())
         whenever(repository.chat(any(), any())).thenReturn(
-            reply("answer", compression = compression(enabled = true, summaryTokens = 100, recentMessages = 6))
+            reply("answer", compression = compression(enabled = true, summaryTokens = 100, messagesSent = 6))
         )
         whenever(repository.clearHistory()).thenReturn(Unit)
 
@@ -538,5 +538,28 @@ class AiAgentViewModelTest {
         viewModel.clearHistory()
 
         assertEquals(null, viewModel.state.value.lastCompression)
+    }
+
+    @Test
+    fun `a status with no summary is shown as it is, not hidden or rounded up`() = runTest {
+        // What a dialogue too short to have been compressed looks like: the
+        // mode is on, but nothing has been summarised yet and every message
+        // was sent word for word. The screen must show that plainly - it is
+        // the explanation for the usage numbers being identical to a run with
+        // compression off.
+        whenever(repository.getHistory()).thenReturn(emptyList())
+        whenever(repository.chat(any(), any())).thenReturn(
+            reply("answer", compression = compression(enabled = true, summaryTokens = 0, messagesSent = 10))
+        )
+
+        val viewModel = createViewModel()
+        viewModel.onCompressionEnabledChanged(true)
+        viewModel.onMessageChanged("вопрос")
+        viewModel.send()
+
+        val shown = viewModel.state.value.lastCompression
+        assertEquals(true, shown?.enabled)
+        assertEquals(0, shown?.summaryTokens)
+        assertEquals(10, shown?.messagesSent)
     }
 }

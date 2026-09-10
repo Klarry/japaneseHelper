@@ -5,5 +5,5 @@ import com.google.gson.annotations.SerializedName
 data class AgentCompressionDto(
     val enabled: Boolean,
     @SerializedName("summary_tokens") val summaryTokens: Int?,
-    @SerializedName("recent_messages") val recentMessages: Int
+    @SerializedName("messages_sent") val messagesSent: Int
 )

@@ -33,7 +33,7 @@ class AgentChatMapperTest {
               "compression": {
                 "enabled": false,
                 "summary_tokens": 0,
-                "recent_messages": 4
+                "messages_sent": 4
               }
             }
         """.trimIndent()
@@ -62,7 +62,7 @@ class AgentChatMapperTest {
               "compression": {
                 "enabled": false,
                 "summary_tokens": null,
-                "recent_messages": 2
+                "messages_sent": 2
               }
             }
         """.trimIndent()
@@ -90,7 +90,7 @@ class AgentChatMapperTest {
               "compression": {
                 "enabled": true,
                 "summary_tokens": 1245,
-                "recent_messages": 6
+                "messages_sent": 6
               }
             }
         """.trimIndent()
@@ -99,7 +99,7 @@ class AgentChatMapperTest {
 
         assertTrue(domain.compression.enabled)
         assertEquals(1245, domain.compression.summaryTokens)
-        assertEquals(6, domain.compression.recentMessages)
+        assertEquals(6, domain.compression.messagesSent)
     }
 
     @Test
@@ -116,7 +116,7 @@ class AgentChatMapperTest {
               "compression": {
                 "enabled": true,
                 "summary_tokens": null,
-                "recent_messages": 6
+                "messages_sent": 6
               }
             }
         """.trimIndent()

@@ -23,7 +23,7 @@ fun AgentCompressionDto.toDomain(): AgentCompressionStatus {
     return AgentCompressionStatus(
         enabled = enabled,
         summaryTokens = summaryTokens,
-        recentMessages = recentMessages
+        messagesSent = messagesSent
     )
 }
 
