@@ -50,17 +50,27 @@ class AiAgentViewModel @Inject constructor(
         _state.value = _state.value.copy(message = message)
     }
 
+    /** Picks the mode for the next request. Nothing is compressed here - the
+     * choice is only forwarded, and the backend does the work. */
+    fun onCompressionEnabledChanged(enabled: Boolean) {
+        _state.value = _state.value.copy(compressionEnabled = enabled)
+    }
+
     fun send() {
         val message = _state.value.message.trim()
 
         if (message.isEmpty()) return
         if (_state.value.isSending) return
 
+        // Read once, so a mode switched while this request is in flight
+        // applies to the next one instead of mislabelling this one.
+        val compressionEnabled = _state.value.compressionEnabled
+
         _state.value = _state.value.copy(isSending = true, sendError = null)
 
         viewModelScope.launch {
             try {
-                val reply = agentRepository.chat(message)
+                val reply = agentRepository.chat(message, compressionEnabled)
                 val updatedMessages = currentMessages() +
                     AgentMessage(role = AgentMessageRole.USER, content = message) +
                     AgentMessage(role = AgentMessageRole.ASSISTANT, content = reply.text)
@@ -69,7 +79,8 @@ class AiAgentViewModel @Inject constructor(
                     message = "",
                     isSending = false,
                     history = AgentHistoryUiState.Loaded(updatedMessages),
-                    lastUsage = reply.usage
+                    lastUsage = reply.usage,
+                    lastCompression = reply.compression
                 )
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 _state.value = _state.value.copy(isSending = false, sendError = e.toErrorMessage())
@@ -88,7 +99,8 @@ class AiAgentViewModel @Inject constructor(
                 _state.value = _state.value.copy(
                     isClearingHistory = false,
                     history = AgentHistoryUiState.Loaded(emptyList()),
-                    lastUsage = null
+                    lastUsage = null,
+                    lastCompression = null
                 )
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 _state.value = _state.value.copy(

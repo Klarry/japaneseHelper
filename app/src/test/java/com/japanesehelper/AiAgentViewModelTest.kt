@@ -1,5 +1,6 @@
 package com.japanesehelper
 
+import com.japanesehelper.domain.model.AgentCompressionStatus
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentReply
@@ -45,7 +46,21 @@ class AiAgentViewModelTest {
         totalTokens = totalTokens
     )
 
-    private fun reply(text: String, usage: AgentTokenUsage = usage()) = AgentReply(text, usage)
+    private fun compression(
+        enabled: Boolean = false,
+        summaryTokens: Int? = 0,
+        recentMessages: Int = 2
+    ) = AgentCompressionStatus(
+        enabled = enabled,
+        summaryTokens = summaryTokens,
+        recentMessages = recentMessages
+    )
+
+    private fun reply(
+        text: String,
+        usage: AgentTokenUsage = usage(),
+        compression: AgentCompressionStatus = compression()
+    ) = AgentReply(text, usage, compression)
 
     // --- initial load -------------------------------------------------
 
@@ -61,7 +76,7 @@ class AiAgentViewModelTest {
         val viewModel = createViewModel()
 
         verify(repository, times(1)).getHistory()
-        verify(repository, never()).chat(any())
+        verify(repository, never()).chat(any(), any())
         val history = viewModel.state.value.history
         assertTrue(history is AgentHistoryUiState.Loaded)
         val messages = (history as AgentHistoryUiState.Loaded).messages
@@ -114,7 +129,7 @@ class AiAgentViewModelTest {
         viewModel.onMessageChanged("Explain the kanji 学")
 
         assertEquals("Explain the kanji 学", viewModel.state.value.message)
-        verify(repository, never()).chat(any())
+        verify(repository, never()).chat(any(), any())
     }
 
     @Test
@@ -125,7 +140,7 @@ class AiAgentViewModelTest {
         viewModel.onMessageChanged("   ")
         viewModel.send()
 
-        verify(repository, never()).chat(any())
+        verify(repository, never()).chat(any(), any())
     }
 
     @Test
@@ -135,19 +150,19 @@ class AiAgentViewModelTest {
         whenever(repository.getHistory()).thenReturn(
             listOf(AgentMessage(AgentMessageRole.ASSISTANT, "earlier answer"))
         )
-        whenever(repository.chat(any())).thenReturn(reply("answer"))
+        whenever(repository.chat(any(), any())).thenReturn(reply("answer"))
 
         val viewModel = createViewModel()
         viewModel.onMessageChanged("  Give me another example for it.  ")
         viewModel.send()
 
-        verify(repository, times(1)).chat("Give me another example for it.")
+        verify(repository, times(1)).chat("Give me another example for it.", false)
     }
 
     @Test
     fun `a successful send appends the user message and the reply, and clears the input`() = runTest {
         whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any())).thenReturn(reply("学 means to study."))
+        whenever(repository.chat(any(), any())).thenReturn(reply("学 means to study."))
 
         val viewModel = createViewModel()
         viewModel.onMessageChanged("Explain the kanji 学")
@@ -170,7 +185,7 @@ class AiAgentViewModelTest {
                 AgentMessage(AgentMessageRole.ASSISTANT, "学 means to study.")
             )
         )
-        whenever(repository.chat(any())).thenReturn(reply("学校 means school."))
+        whenever(repository.chat(any(), any())).thenReturn(reply("学校 means school."))
 
         val viewModel = createViewModel()
         viewModel.onMessageChanged("Give me another example for it.")
@@ -187,7 +202,7 @@ class AiAgentViewModelTest {
         whenever(repository.getHistory()).thenReturn(
             listOf(AgentMessage(AgentMessageRole.USER, "Explain 学"))
         )
-        whenever(repository.chat(any())).thenThrow(RuntimeException("network down"))
+        whenever(repository.chat(any(), any())).thenThrow(RuntimeException("network down"))
 
         val viewModel = createViewModel()
         viewModel.onMessageChanged("Give me another example for it.")
@@ -203,7 +218,7 @@ class AiAgentViewModelTest {
         val deferred = CompletableDeferred<AgentReply>()
         var callCount = 0
         val fakeRepository = object : AgentRepository {
-            override suspend fun chat(message: String): AgentReply {
+            override suspend fun chat(message: String, compressionEnabled: Boolean): AgentReply {
                 callCount++
                 return deferred.await()
             }
@@ -263,7 +278,7 @@ class AiAgentViewModelTest {
         val deferred = CompletableDeferred<Unit>()
         var callCount = 0
         val fakeRepository = object : AgentRepository {
-            override suspend fun chat(message: String): AgentReply = reply("unused")
+            override suspend fun chat(message: String, compressionEnabled: Boolean): AgentReply = reply("unused")
             override suspend fun getHistory(): List<AgentMessage> = emptyList()
             override suspend fun clearHistory() {
                 callCount++
@@ -297,7 +312,7 @@ class AiAgentViewModelTest {
     fun `a successful send shows the real usage numbers the backend reported`() = runTest {
         // Scenario 1 (short dialogue): small, real numbers from the backend.
         whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any())).thenReturn(
+        whenever(repository.chat(any(), any())).thenReturn(
             reply("answer", usage(currentRequestTokens = 42, historyTokens = 0, responseTokens = 12, totalTokens = 54))
         )
 
@@ -317,7 +332,7 @@ class AiAgentViewModelTest {
         // Scenario 2 (long dialogue): history and total tokens keep growing,
         // and the screen must show the latest numbers, not a running sum.
         whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any())).thenReturn(
+        whenever(repository.chat(any(), any())).thenReturn(
             reply("first answer", usage(currentRequestTokens = 20, historyTokens = 0, responseTokens = 8, totalTokens = 28))
         )
         val viewModel = createViewModel()
@@ -325,7 +340,7 @@ class AiAgentViewModelTest {
         viewModel.send()
         assertEquals(28, viewModel.state.value.lastUsage?.totalTokens)
 
-        whenever(repository.chat(any())).thenReturn(
+        whenever(repository.chat(any(), any())).thenReturn(
             reply(
                 "second answer",
                 usage(currentRequestTokens = 25, historyTokens = 60, responseTokens = 10, totalTokens = 95)
@@ -343,7 +358,7 @@ class AiAgentViewModelTest {
     @Test
     fun `usage fields the backend could not report come through as null, not a guess`() = runTest {
         whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any())).thenReturn(
+        whenever(repository.chat(any(), any())).thenReturn(
             reply("answer", usage(currentRequestTokens = null, historyTokens = 10, responseTokens = 6, totalTokens = null))
         )
 
@@ -362,14 +377,14 @@ class AiAgentViewModelTest {
         // Scenario 3: a conversation too long for the model's context window
         // must surface as a clear, visible error - not a crash.
         whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any())).thenReturn(
+        whenever(repository.chat(any(), any())).thenReturn(
             reply("first answer", usage(totalTokens = 30))
         )
         val viewModel = createViewModel()
         viewModel.onMessageChanged("first message")
         viewModel.send()
 
-        whenever(repository.chat(any())).thenThrow(
+        whenever(repository.chat(any(), any())).thenThrow(
             RuntimeException("The input token count exceeds the maximum number of tokens allowed")
         )
         viewModel.onMessageChanged("one message too many")
@@ -387,7 +402,7 @@ class AiAgentViewModelTest {
     @Test
     fun `clearing history also clears the shown usage stats`() = runTest {
         whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any())).thenReturn(reply("answer"))
+        whenever(repository.chat(any(), any())).thenReturn(reply("answer"))
         whenever(repository.clearHistory()).thenReturn(Unit)
 
         val viewModel = createViewModel()
@@ -398,5 +413,130 @@ class AiAgentViewModelTest {
         viewModel.clearHistory()
 
         assertEquals(null, viewModel.state.value.lastUsage)
+    }
+
+    // --- compression mode -------------------------------------------------
+
+    @Test
+    fun `compression is off until it is switched on`() = runTest {
+        whenever(repository.getHistory()).thenReturn(emptyList())
+
+        val viewModel = createViewModel()
+
+        assertFalse(viewModel.state.value.compressionEnabled)
+        assertEquals(null, viewModel.state.value.lastCompression)
+    }
+
+    @Test
+    fun `switching the mode does not send anything by itself`() = runTest {
+        whenever(repository.getHistory()).thenReturn(emptyList())
+        val viewModel = createViewModel()
+
+        viewModel.onCompressionEnabledChanged(true)
+
+        assertTrue(viewModel.state.value.compressionEnabled)
+        verify(repository, never()).chat(any(), any())
+    }
+
+    @Test
+    fun `the chosen mode is what the request asks the backend for`() = runTest {
+        whenever(repository.getHistory()).thenReturn(emptyList())
+        whenever(repository.chat(any(), any())).thenReturn(reply("answer"))
+
+        val viewModel = createViewModel()
+        viewModel.onCompressionEnabledChanged(true)
+        viewModel.onMessageChanged("Explain the kanji 学")
+        viewModel.send()
+
+        // Still just the message and the choice - no summary, no prompt, no
+        // history is assembled on the device.
+        verify(repository, times(1)).chat("Explain the kanji 学", true)
+    }
+
+    @Test
+    fun `switching back to off is sent as off`() = runTest {
+        whenever(repository.getHistory()).thenReturn(emptyList())
+        whenever(repository.chat(any(), any())).thenReturn(reply("answer"))
+
+        val viewModel = createViewModel()
+        viewModel.onCompressionEnabledChanged(true)
+        viewModel.onCompressionEnabledChanged(false)
+        viewModel.onMessageChanged("Explain the kanji 学")
+        viewModel.send()
+
+        verify(repository, times(1)).chat("Explain the kanji 学", false)
+    }
+
+    @Test
+    fun `the compression status shown is the one the backend reported`() = runTest {
+        whenever(repository.getHistory()).thenReturn(emptyList())
+        whenever(repository.chat(any(), any())).thenReturn(
+            reply("answer", compression = compression(enabled = true, summaryTokens = 1245, recentMessages = 6))
+        )
+
+        val viewModel = createViewModel()
+        viewModel.onCompressionEnabledChanged(true)
+        viewModel.onMessageChanged("Explain 学")
+        viewModel.send()
+
+        val shown = viewModel.state.value.lastCompression
+        assertEquals(true, shown?.enabled)
+        assertEquals(1245, shown?.summaryTokens)
+        assertEquals(6, shown?.recentMessages)
+    }
+
+    @Test
+    fun `the same dialogue in both modes shows the difference in token usage`() = runTest {
+        // Scenarios 1 and 2 at the screen level: the same message sent with
+        // compression off and then on, with the screen showing exactly what
+        // the backend reported for each.
+        whenever(repository.getHistory()).thenReturn(emptyList())
+        whenever(repository.chat(any(), any())).thenReturn(
+            reply(
+                "answer",
+                usage(currentRequestTokens = 17, historyTokens = 3200, responseTokens = 300, totalTokens = 3517),
+                compression(enabled = false, summaryTokens = 0, recentMessages = 24)
+            )
+        )
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Расскажи про 〜につれて")
+        viewModel.send()
+        val withoutCompression = viewModel.state.value.lastUsage
+
+        whenever(repository.chat(any(), any())).thenReturn(
+            reply(
+                "answer",
+                usage(currentRequestTokens = 17, historyTokens = 900, responseTokens = 300, totalTokens = 1217),
+                compression(enabled = true, summaryTokens = 240, recentMessages = 6)
+            )
+        )
+        viewModel.onCompressionEnabledChanged(true)
+        viewModel.onMessageChanged("Расскажи про 〜につれて")
+        viewModel.send()
+        val withCompression = viewModel.state.value.lastUsage
+
+        assertEquals(3200, withoutCompression?.historyTokens)
+        assertEquals(900, withCompression?.historyTokens)
+        assertTrue(withCompression!!.totalTokens!! < withoutCompression!!.totalTokens!!)
+        assertEquals(6, viewModel.state.value.lastCompression?.recentMessages)
+    }
+
+    @Test
+    fun `clearing history also clears the shown compression status`() = runTest {
+        whenever(repository.getHistory()).thenReturn(emptyList())
+        whenever(repository.chat(any(), any())).thenReturn(
+            reply("answer", compression = compression(enabled = true, summaryTokens = 100, recentMessages = 6))
+        )
+        whenever(repository.clearHistory()).thenReturn(Unit)
+
+        val viewModel = createViewModel()
+        viewModel.onCompressionEnabledChanged(true)
+        viewModel.onMessageChanged("Explain 学")
+        viewModel.send()
+        assertTrue(viewModel.state.value.lastCompression != null)
+
+        viewModel.clearHistory()
+
+        assertEquals(null, viewModel.state.value.lastCompression)
     }
 }

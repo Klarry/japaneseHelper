@@ -66,4 +66,10 @@
     <string name="ai_agent_usage_history_row">History: %1$s</string>
     <string name="ai_agent_usage_response_row">Response: %1$s</string>
     <string name="ai_agent_usage_total_row">Total: %1$s</string>
+    <string name="ai_agent_compression_off">Compression: OFF</string>
+    <string name="ai_agent_compression_on">Compression: ON</string>
+    <string name="ai_agent_compression_status_title">Compression status</string>
+    <string name="ai_agent_compression_status_on">Mode: ON</string>
+    <string name="ai_agent_compression_summary_row">Summary: %1$s tokens</string>
+    <string name="ai_agent_compression_recent_row">Recent messages: %1$d</string>
 </resources>

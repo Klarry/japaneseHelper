@@ -14,9 +14,12 @@ class AgentRepositoryImpl @Inject constructor(
     private val agentApi: AgentApi
 ) : AgentRepository {
 
-    override suspend fun chat(message: String): AgentReply = withContext(Dispatchers.IO) {
-        agentApi.chat(AgentChatRequestDto(message = message)).toDomain()
-    }
+    override suspend fun chat(message: String, compressionEnabled: Boolean): AgentReply =
+        withContext(Dispatchers.IO) {
+            agentApi.chat(
+                AgentChatRequestDto(message = message, compressionEnabled = compressionEnabled)
+            ).toDomain()
+        }
 
     override suspend fun getHistory(): List<AgentMessage> = withContext(Dispatchers.IO) {
         agentApi.getHistory().toDomain()

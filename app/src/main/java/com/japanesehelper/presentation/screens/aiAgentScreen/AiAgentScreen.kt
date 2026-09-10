@@ -15,6 +15,8 @@ import com.japanesehelper.R
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.AgentConversation
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.AskAgentButton
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ClearHistoryButton
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.CompressionModeTabRow
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.CompressionStatusSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TokenUsageSection
 import com.japanesehelper.presentation.screens.homeScreen.components.ErrorWithRetry
 import com.japanesehelper.presentation.screens.homeScreen.components.ScreenScaffold
@@ -28,6 +30,11 @@ import com.japanesehelper.presentation.viewmodel.screendata.AgentHistoryUiState
  * DELETE /agent/history. The user's message is always sent to POST
  * /agent/chat unchanged - no prompt is built here, that belongs to the
  * backend.
+ *
+ * The Compression tabs choose which mode that request asks for: the whole
+ * history every turn, or a backend-built summary plus the newest messages.
+ * Choosing is all this screen does - no summary is ever built here - and the
+ * existing Token Usage block is what makes the difference visible.
  */
 @Composable
 fun AiAgentScreen(
@@ -44,6 +51,11 @@ fun AiAgentScreen(
             text = stringResource(R.string.ai_agent_description),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        CompressionModeTabRow(
+            compressionEnabled = state.compressionEnabled,
+            onCompressionEnabledChanged = viewModel::onCompressionEnabledChanged
         )
 
         AgentConversation(
@@ -73,6 +85,11 @@ fun AiAgentScreen(
         val lastUsage = state.lastUsage
         if (lastUsage != null) {
             TokenUsageSection(usage = lastUsage)
+        }
+
+        val lastCompression = state.lastCompression
+        if (lastCompression != null && lastCompression.enabled) {
+            CompressionStatusSection(status = lastCompression)
         }
 
         val loadedMessages = (state.history as? AgentHistoryUiState.Loaded)?.messages
