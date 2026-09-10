@@ -54,11 +54,8 @@
     <string name="model_comparison_strength_pro">Pro</string>
 
     <string name="ai_agent_title">AI Agent</string>
-    <string name="ai_agent_description">Ask the Japanese Learning Agent</string>
     <string name="ai_agent_input_placeholder">Ask something about Japanese...</string>
     <string name="ai_agent_ask_button">Ask Agent</string>
-    <string name="ai_agent_role_user">You</string>
-    <string name="ai_agent_role_agent">Agent</string>
     <string name="ai_agent_empty_state">No conversation yet. Ask something to get started.</string>
     <string name="ai_agent_clear_history_button">Clear History</string>
     <string name="ai_agent_usage_title">Token usage</string>

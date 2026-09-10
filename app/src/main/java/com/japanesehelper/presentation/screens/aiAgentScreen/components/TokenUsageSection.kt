@@ -1,16 +1,10 @@
 package com.japanesehelper.presentation.screens.aiAgentScreen.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.japanesehelper.R
 import com.japanesehelper.domain.model.AgentTokenUsage
-import com.japanesehelper.presentation.screens.homeScreen.components.LabeledBlock
-import com.japanesehelper.presentation.theme.LocalAppPadding
 
 private const val NO_TOKEN_COUNT = "—"
 
@@ -22,26 +16,16 @@ private const val NO_TOKEN_COUNT = "—"
  */
 @Composable
 fun TokenUsageSection(usage: AgentTokenUsage, modifier: Modifier = Modifier) {
-    LabeledBlock(caption = stringResource(R.string.ai_agent_usage_title), modifier = modifier) {
-        Column(verticalArrangement = Arrangement.spacedBy(LocalAppPadding.current.quarter)) {
-            Text(
-                text = stringResource(R.string.ai_agent_usage_current_request_row, usage.currentRequestTokens.orDash()),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(R.string.ai_agent_usage_history_row, usage.historyTokens.orDash()),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(R.string.ai_agent_usage_response_row, usage.responseTokens.orDash()),
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = stringResource(R.string.ai_agent_usage_total_row, usage.totalTokens.orDash()),
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-    }
+    CompactReadout(
+        caption = stringResource(R.string.ai_agent_usage_title),
+        values = listOf(
+            stringResource(R.string.ai_agent_usage_current_request_row, usage.currentRequestTokens.orDash()),
+            stringResource(R.string.ai_agent_usage_history_row, usage.historyTokens.orDash()),
+            stringResource(R.string.ai_agent_usage_response_row, usage.responseTokens.orDash()),
+            stringResource(R.string.ai_agent_usage_total_row, usage.totalTokens.orDash())
+        ),
+        modifier = modifier
+    )
 }
 
 /** Shared with [CompressionStatusSection]: a count the backend could not
