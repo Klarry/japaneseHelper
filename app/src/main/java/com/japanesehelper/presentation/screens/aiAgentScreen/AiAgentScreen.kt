@@ -20,11 +20,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.japanesehelper.R
+import com.japanesehelper.domain.model.AgentContextStrategy
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.AgentConversation
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.AskAgentButton
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.BranchingControls
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ClearHistoryButton
-import com.japanesehelper.presentation.screens.aiAgentScreen.components.CompressionModeTabRow
-import com.japanesehelper.presentation.screens.aiAgentScreen.components.CompressionStatusSection
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextSection
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextStrategyTabRow
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.CreateBranchDialog
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TokenUsageSection
 import com.japanesehelper.presentation.screens.homeScreen.components.ErrorWithRetry
 import com.japanesehelper.presentation.screens.homeScreen.components.ScreenTopBar
@@ -39,20 +42,14 @@ private const val MAX_INPUT_LINES = 4
 /**
  * A persistent chat with the backend's JapaneseLearningAgent, laid out as one
  * chat window: the conversation owns the height of the screen and scrolls on
- * its own, while the input and the readouts stay put underneath it. Unlike
- * every other screen here it does not use ScreenScaffold, because that scrolls
- * the whole page - which would carry the input off screen as the conversation
- * grows.
+ * its own, while the input and the readouts stay put underneath it.
  *
- * History is loaded from GET /agent/history when the screen opens and restored
- * as-is; every send appends to it; "Clear History" empties it via DELETE
- * /agent/history. The user's message is always sent to POST /agent/chat
- * unchanged - no prompt is built here, that belongs to the backend.
- *
- * The Compression tabs choose which mode that request asks for: the whole
- * history every turn, or a backend-built summary plus the newest messages.
- * Choosing is all this screen does - no summary is ever built here - and the
- * readouts under the input are what make the difference visible.
+ * The Context Strategy tabs choose how the backend assembles what it sends -
+ * the newest messages only, a key-value memory of what matters, or the branch
+ * being talked on. Choosing is all this screen does: it never trims the
+ * history or builds facts itself, and what it shows under the input is what
+ * the backend reports it would send. The existing Token Usage block is what
+ * makes the difference between the strategies visible.
  */
 @Composable
 fun AiAgentScreen(
@@ -78,10 +75,21 @@ fun AiAgentScreen(
                 .fillMaxSize()
                 .imePadding()
         ) {
-            CompressionModeTabRow(
-                compressionEnabled = state.compressionEnabled,
-                onCompressionEnabledChanged = viewModel::onCompressionEnabledChanged
+            ContextStrategyTabRow(
+                selected = state.strategy,
+                onSelected = viewModel::onStrategySelected
             )
+
+            if (state.strategy == AgentContextStrategy.BRANCHING) {
+                BranchingControls(
+                    context = state.context,
+                    isWorking = state.isBranchWorking,
+                    onSwitchBranch = viewModel::switchBranch,
+                    onCreateCheckpoint = viewModel::createCheckpoint,
+                    onCreateBranch = viewModel::openNewBranch,
+                    modifier = Modifier.padding(top = padding.half)
+                )
+            }
 
             AgentConversation(
                 historyState = state.history,
@@ -129,9 +137,15 @@ fun AiAgentScreen(
                             TokenUsageSection(usage = lastUsage)
                         }
 
-                        val lastCompression = state.lastCompression
-                        if (lastCompression != null && lastCompression.enabled) {
-                            CompressionStatusSection(status = lastCompression)
+                        ContextSection(strategy = state.strategy, context = state.context)
+
+                        val contextError = state.contextError
+                        if (contextError != null) {
+                            Text(
+                                text = contextError,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
                         }
                     }
 
@@ -147,6 +161,18 @@ fun AiAgentScreen(
                     ErrorWithRetry(message = clearError, onRetry = viewModel::clearHistory)
                 }
             }
+        }
+
+        val newBranch = state.newBranch
+        if (newBranch != null) {
+            CreateBranchDialog(
+                state = newBranch,
+                checkpoints = state.context?.checkpoints.orEmpty(),
+                onNameChanged = viewModel::onNewBranchNameChanged,
+                onCheckpointSelected = viewModel::onNewBranchCheckpointSelected,
+                onConfirm = viewModel::confirmNewBranch,
+                onDismiss = viewModel::dismissNewBranch
+            )
         }
     }
 }

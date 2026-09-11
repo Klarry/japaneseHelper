@@ -63,10 +63,21 @@
     <string name="ai_agent_usage_history_row">History: %1$s</string>
     <string name="ai_agent_usage_response_row">Response: %1$s</string>
     <string name="ai_agent_usage_total_row">Total: %1$s</string>
-    <string name="ai_agent_compression_off">Compression: OFF</string>
-    <string name="ai_agent_compression_on">Compression: ON</string>
-    <string name="ai_agent_compression_status_title">Compression status</string>
-    <string name="ai_agent_compression_status_on">Mode: ON</string>
-    <string name="ai_agent_compression_summary_row">Summary: %1$s tokens</string>
-    <string name="ai_agent_compression_messages_row">Messages sent: %1$d</string>
+    <string name="ai_agent_strategy_sliding_window">Sliding Window</string>
+    <string name="ai_agent_strategy_sticky_facts">Sticky Facts</string>
+    <string name="ai_agent_strategy_branching">Branching</string>
+    <string name="ai_agent_context_window_title">Context window</string>
+    <string name="ai_agent_facts_title">Facts</string>
+    <string name="ai_agent_facts_empty">No facts yet</string>
+    <string name="ai_agent_context_row">%1$s: %2$s</string>
+    <string name="ai_agent_role_user">You</string>
+    <string name="ai_agent_role_agent">Agent</string>
+    <string name="ai_agent_branch_title">Branch</string>
+    <string name="ai_agent_create_checkpoint_button">Create Checkpoint</string>
+    <string name="ai_agent_create_branch_button">Create Branch</string>
+    <string name="ai_agent_branch_dialog_title">New branch</string>
+    <string name="ai_agent_branch_name_placeholder">Branch name</string>
+    <string name="ai_agent_branch_from_checkpoint">From checkpoint</string>
+    <string name="ai_agent_branch_create">Create</string>
+    <string name="ai_agent_branch_cancel">Cancel</string>
 </resources>

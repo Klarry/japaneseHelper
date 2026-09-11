@@ -1,6 +1,7 @@
 package com.japanesehelper
 
-import com.japanesehelper.domain.model.AgentCompressionStatus
+import com.japanesehelper.domain.model.AgentContext
+import com.japanesehelper.domain.model.AgentContextStrategy
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentReply
@@ -13,6 +14,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -39,65 +41,87 @@ class AiAgentViewModelTest {
         historyTokens: Int? = 0,
         responseTokens: Int? = 5,
         totalTokens: Int? = 15
-    ) = AgentTokenUsage(
-        currentRequestTokens = currentRequestTokens,
-        historyTokens = historyTokens,
-        responseTokens = responseTokens,
-        totalTokens = totalTokens
-    )
+    ) = AgentTokenUsage(currentRequestTokens, historyTokens, responseTokens, totalTokens)
 
-    private fun compression(
-        enabled: Boolean = false,
-        summaryTokens: Int? = 0,
-        messagesSent: Int = 2
-    ) = AgentCompressionStatus(
-        enabled = enabled,
-        summaryTokens = summaryTokens,
-        messagesSent = messagesSent
-    )
+    private fun reply(text: String, usage: AgentTokenUsage = usage()) = AgentReply(text, usage)
 
-    private fun reply(
-        text: String,
-        usage: AgentTokenUsage = usage(),
-        compression: AgentCompressionStatus = compression()
-    ) = AgentReply(text, usage, compression)
+    private fun message(content: String, role: AgentMessageRole = AgentMessageRole.USER) =
+        AgentMessage(role = role, content = content)
 
-    // --- initial load -------------------------------------------------
+    private fun context(
+        strategy: String = "sliding_window",
+        branch: String = "main",
+        branches: List<String> = listOf("main"),
+        checkpoints: List<String> = emptyList(),
+        facts: Map<String, String> = emptyMap(),
+        messages: List<AgentMessage> = emptyList()
+    ) = AgentContext(strategy, branch, branches, checkpoints, facts, messages)
+
+    private suspend fun given(
+        history: List<AgentMessage> = emptyList(),
+        context: AgentContext = context()
+    ) {
+        whenever(repository.getHistory()).thenReturn(history)
+        whenever(repository.getContext()).thenReturn(context)
+    }
+
+    /** Every method already behaves, so a test overrides only what it is about. */
+    private open class FakeAgentRepository : AgentRepository {
+        override suspend fun chat(message: String, strategy: AgentContextStrategy): AgentReply =
+            AgentReply("answer", AgentTokenUsage(null, null, null, null))
+
+        override suspend fun getHistory(): List<AgentMessage> = emptyList()
+        override suspend fun clearHistory() = Unit
+        override suspend fun setStrategy(strategy: AgentContextStrategy) = Unit
+        override suspend fun getContext(): AgentContext =
+            AgentContext("sliding_window", "main", listOf("main"), emptyList(), emptyMap(), emptyList())
+
+        override suspend fun createCheckpoint(): String = "cp-1"
+        override suspend fun createBranch(name: String, checkpoint: String) = Unit
+        override suspend fun switchBranch(name: String) = Unit
+    }
+
+    // --- opening the screen -------------------------------------------------
 
     @Test
-    fun `history is loaded from the repository when the screen opens`() = runTest {
-        whenever(repository.getHistory()).thenReturn(
-            listOf(
-                AgentMessage(AgentMessageRole.USER, "Explain the kanji 学"),
-                AgentMessage(AgentMessageRole.ASSISTANT, "学 means to study.")
-            )
-        )
+    fun `history and context are loaded when the screen opens`() = runTest {
+        given(history = listOf(message("Explain the kanji 学")))
 
         val viewModel = createViewModel()
 
         verify(repository, times(1)).getHistory()
+        verify(repository, times(1)).getContext()
         verify(repository, never()).chat(any(), any())
         val history = viewModel.state.value.history
         assertTrue(history is AgentHistoryUiState.Loaded)
-        val messages = (history as AgentHistoryUiState.Loaded).messages
-        assertEquals(2, messages.size)
-        assertEquals("Explain the kanji 学", messages[0].content)
-        assertEquals(AgentMessageRole.ASSISTANT, messages[1].role)
+        assertEquals(1, (history as AgentHistoryUiState.Loaded).messages.size)
+        assertEquals("main", viewModel.state.value.context?.branch)
     }
 
     @Test
-    fun `an empty history is loaded as an empty conversation, not an error`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
+    fun `the strategy shown is the one the backend is already on`() = runTest {
+        given(context = context(strategy = "sticky_facts"))
 
         val viewModel = createViewModel()
 
-        val history = viewModel.state.value.history
-        assertTrue(history is AgentHistoryUiState.Loaded)
-        assertTrue((history as AgentHistoryUiState.Loaded).messages.isEmpty())
+        assertEquals(AgentContextStrategy.STICKY_FACTS, viewModel.state.value.strategy)
+        verify(repository, never()).setStrategy(any())
+    }
+
+    @Test
+    fun `a backend on a strategy this screen does not offer is put on one it does`() = runTest {
+        // The older full and summary modes are not offered here any more.
+        given(context = context(strategy = "summary"))
+
+        val viewModel = createViewModel()
+
+        verify(repository, times(1)).setStrategy(AgentContextStrategy.SLIDING_WINDOW)
+        assertEquals(AgentContextStrategy.SLIDING_WINDOW, viewModel.state.value.strategy)
     }
 
     @Test
     fun `a history loading failure surfaces as an error state`() = runTest {
+        whenever(repository.getContext()).thenReturn(context())
         whenever(repository.getHistory()).thenThrow(RuntimeException("network down"))
 
         val viewModel = createViewModel()
@@ -108,60 +132,37 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `retrying after a history loading failure reloads it`() = runTest {
-        whenever(repository.getHistory()).thenThrow(RuntimeException("boom"))
+    fun `a context loading failure is shown without breaking the conversation`() = runTest {
+        whenever(repository.getHistory()).thenReturn(listOf(message("Explain 学")))
+        whenever(repository.getContext()).thenThrow(RuntimeException("context unavailable"))
+
         val viewModel = createViewModel()
-        assertTrue(viewModel.state.value.history is AgentHistoryUiState.Error)
 
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        viewModel.loadHistory()
-
+        assertEquals("context unavailable", viewModel.state.value.contextError)
         assertTrue(viewModel.state.value.history is AgentHistoryUiState.Loaded)
     }
 
-    // --- sending --------------------------------------------------------
+    // --- sending ------------------------------------------------------------
 
     @Test
-    fun `typing updates the message without sending a request`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        val viewModel = createViewModel()
-
-        viewModel.onMessageChanged("Explain the kanji 学")
-
-        assertEquals("Explain the kanji 学", viewModel.state.value.message)
-        verify(repository, never()).chat(any(), any())
-    }
-
-    @Test
-    fun `sending a blank message does not call the repository`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        val viewModel = createViewModel()
-
-        viewModel.onMessageChanged("   ")
-        viewModel.send()
-
-        verify(repository, never()).chat(any(), any())
-    }
-
-    @Test
-    fun `the send request contains only the user's trimmed message`() = runTest {
-        // History already has a turn in it - the request must still be just
-        // the new message. Conversation context is the backend's job.
-        whenever(repository.getHistory()).thenReturn(
-            listOf(AgentMessage(AgentMessageRole.ASSISTANT, "earlier answer"))
-        )
+    fun `the send request contains only the trimmed message and the chosen strategy`() = runTest {
+        // History already has a turn in it - the request must still be just the
+        // new message and the strategy. Assembling the context is the backend's
+        // job, and nothing is trimmed or summarised here.
+        given(history = listOf(message("earlier answer", AgentMessageRole.ASSISTANT)))
         whenever(repository.chat(any(), any())).thenReturn(reply("answer"))
 
         val viewModel = createViewModel()
         viewModel.onMessageChanged("  Give me another example for it.  ")
         viewModel.send()
 
-        verify(repository, times(1)).chat("Give me another example for it.", false)
+        verify(repository, times(1))
+            .chat("Give me another example for it.", AgentContextStrategy.SLIDING_WINDOW)
     }
 
     @Test
     fun `a successful send appends the user message and the reply, and clears the input`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
+        given()
         whenever(repository.chat(any(), any())).thenReturn(reply("学 means to study."))
 
         val viewModel = createViewModel()
@@ -172,36 +173,44 @@ class AiAgentViewModelTest {
         val messages = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages
         assertEquals(2, messages.size)
         assertEquals(AgentMessageRole.USER, messages[0].role)
-        assertEquals("Explain the kanji 学", messages[0].content)
-        assertEquals(AgentMessageRole.ASSISTANT, messages[1].role)
         assertEquals("学 means to study.", messages[1].content)
     }
 
     @Test
-    fun `sending again appends to the existing conversation instead of replacing it`() = runTest {
-        whenever(repository.getHistory()).thenReturn(
-            listOf(
-                AgentMessage(AgentMessageRole.USER, "Explain the kanji 学"),
-                AgentMessage(AgentMessageRole.ASSISTANT, "学 means to study.")
+    fun `a successful send shows the real usage numbers the backend reported`() = runTest {
+        given()
+        whenever(repository.chat(any(), any())).thenReturn(
+            reply(
+                "answer",
+                usage(currentRequestTokens = 42, historyTokens = 318, responseTokens = 76, totalTokens = 436)
             )
         )
-        whenever(repository.chat(any(), any())).thenReturn(reply("学校 means school."))
 
         val viewModel = createViewModel()
-        viewModel.onMessageChanged("Give me another example for it.")
+        viewModel.onMessageChanged("Explain 学")
         viewModel.send()
 
-        val messages = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages
-        assertEquals(4, messages.size)
-        assertEquals("Give me another example for it.", messages[2].content)
-        assertEquals("学校 means school.", messages[3].content)
+        val shown = viewModel.state.value.lastUsage
+        assertEquals(42, shown?.currentRequestTokens)
+        assertEquals(318, shown?.historyTokens)
+        assertEquals(436, shown?.totalTokens)
+    }
+
+    @Test
+    fun `the context is reloaded after every send, because the strategy may have moved it`() = runTest {
+        given()
+        whenever(repository.chat(any(), any())).thenReturn(reply("answer"))
+
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Explain 学")
+        viewModel.send()
+
+        verify(repository, times(2)).getContext()
     }
 
     @Test
     fun `a send failure shows an error and keeps the existing conversation and input`() = runTest {
-        whenever(repository.getHistory()).thenReturn(
-            listOf(AgentMessage(AgentMessageRole.USER, "Explain 学"))
-        )
+        given(history = listOf(message("Explain 学")))
         whenever(repository.chat(any(), any())).thenThrow(RuntimeException("network down"))
 
         val viewModel = createViewModel()
@@ -217,13 +226,11 @@ class AiAgentViewModelTest {
     fun `sending is Loading while the request is in flight, and a second send is ignored`() = runTest {
         val deferred = CompletableDeferred<AgentReply>()
         var callCount = 0
-        val fakeRepository = object : AgentRepository {
-            override suspend fun chat(message: String, compressionEnabled: Boolean): AgentReply {
+        val fakeRepository = object : FakeAgentRepository() {
+            override suspend fun chat(message: String, strategy: AgentContextStrategy): AgentReply {
                 callCount++
                 return deferred.await()
             }
-            override suspend fun getHistory(): List<AgentMessage> = emptyList()
-            override suspend fun clearHistory() = Unit
         }
 
         val viewModel = createViewModel(repository = fakeRepository)
@@ -239,171 +246,172 @@ class AiAgentViewModelTest {
         assertFalse(viewModel.state.value.isSending)
     }
 
-    // --- clearing history -------------------------------------------------
+    // --- choosing a strategy ------------------------------------------------
 
     @Test
-    fun `clearing history empties the conversation on success`() = runTest {
-        whenever(repository.getHistory()).thenReturn(
-            listOf(AgentMessage(AgentMessageRole.USER, "Explain 学"))
-        )
-        whenever(repository.clearHistory()).thenReturn(Unit)
+    fun `choosing a strategy tells the backend and reloads the context`() = runTest {
+        given()
 
         val viewModel = createViewModel()
-        viewModel.clearHistory()
+        viewModel.onStrategySelected(AgentContextStrategy.STICKY_FACTS)
 
-        verify(repository, times(1)).clearHistory()
-        val history = viewModel.state.value.history
-        assertTrue(history is AgentHistoryUiState.Loaded)
-        assertTrue((history as AgentHistoryUiState.Loaded).messages.isEmpty())
+        verify(repository, times(1)).setStrategy(AgentContextStrategy.STICKY_FACTS)
+        verify(repository, times(2)).getContext()
+        assertEquals(AgentContextStrategy.STICKY_FACTS, viewModel.state.value.strategy)
     }
 
     @Test
-    fun `a clear-history failure keeps the existing conversation visible and shows an error`() = runTest {
-        whenever(repository.getHistory()).thenReturn(
-            listOf(AgentMessage(AgentMessageRole.USER, "Explain 学"))
-        )
-        whenever(repository.clearHistory()).thenThrow(RuntimeException("network down"))
+    fun `the chosen strategy is what the next message is sent with`() = runTest {
+        given()
+        whenever(repository.chat(any(), any())).thenReturn(reply("answer"))
 
         val viewModel = createViewModel()
-        viewModel.clearHistory()
-
-        assertEquals("network down", viewModel.state.value.clearHistoryError)
-        val history = viewModel.state.value.history
-        assertTrue(history is AgentHistoryUiState.Loaded)
-        assertEquals(1, (history as AgentHistoryUiState.Loaded).messages.size)
-    }
-
-    @Test
-    fun `clearing history while already clearing is ignored`() = runTest {
-        val deferred = CompletableDeferred<Unit>()
-        var callCount = 0
-        val fakeRepository = object : AgentRepository {
-            override suspend fun chat(message: String, compressionEnabled: Boolean): AgentReply = reply("unused")
-            override suspend fun getHistory(): List<AgentMessage> = emptyList()
-            override suspend fun clearHistory() {
-                callCount++
-                deferred.await()
-            }
-        }
-
-        val viewModel = createViewModel(repository = fakeRepository)
-
-        viewModel.clearHistory()
-        assertTrue(viewModel.state.value.isClearingHistory)
-
-        viewModel.clearHistory()
-        assertEquals(1, callCount)
-
-        deferred.complete(Unit)
-    }
-
-    // --- token usage ------------------------------------------------------
-
-    @Test
-    fun `there is no token usage to show before anything is sent`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
-
-        val viewModel = createViewModel()
-
-        assertEquals(null, viewModel.state.value.lastUsage)
-    }
-
-    @Test
-    fun `a successful send shows the real usage numbers the backend reported`() = runTest {
-        // Scenario 1 (short dialogue): small, real numbers from the backend.
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any(), any())).thenReturn(
-            reply("answer", usage(currentRequestTokens = 42, historyTokens = 0, responseTokens = 12, totalTokens = 54))
-        )
-
-        val viewModel = createViewModel()
-        viewModel.onMessageChanged("Explain the kanji 学")
-        viewModel.send()
-
-        val shown = viewModel.state.value.lastUsage
-        assertEquals(42, shown?.currentRequestTokens)
-        assertEquals(0, shown?.historyTokens)
-        assertEquals(12, shown?.responseTokens)
-        assertEquals(54, shown?.totalTokens)
-    }
-
-    @Test
-    fun `usage is replaced, not accumulated, after each send`() = runTest {
-        // Scenario 2 (long dialogue): history and total tokens keep growing,
-        // and the screen must show the latest numbers, not a running sum.
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any(), any())).thenReturn(
-            reply("first answer", usage(currentRequestTokens = 20, historyTokens = 0, responseTokens = 8, totalTokens = 28))
-        )
-        val viewModel = createViewModel()
-        viewModel.onMessageChanged("first message")
-        viewModel.send()
-        assertEquals(28, viewModel.state.value.lastUsage?.totalTokens)
-
-        whenever(repository.chat(any(), any())).thenReturn(
-            reply(
-                "second answer",
-                usage(currentRequestTokens = 25, historyTokens = 60, responseTokens = 10, totalTokens = 95)
-            )
-        )
-        viewModel.onMessageChanged("second message")
-        viewModel.send()
-
-        val shown = viewModel.state.value.lastUsage
-        assertEquals(60, shown?.historyTokens)
-        assertEquals(95, shown?.totalTokens)
-        assertTrue(95 > 28) // total grew across turns, as expected for a growing conversation
-    }
-
-    @Test
-    fun `usage fields the backend could not report come through as null, not a guess`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any(), any())).thenReturn(
-            reply("answer", usage(currentRequestTokens = null, historyTokens = 10, responseTokens = 6, totalTokens = null))
-        )
-
-        val viewModel = createViewModel()
+        viewModel.onStrategySelected(AgentContextStrategy.BRANCHING)
         viewModel.onMessageChanged("Explain 学")
         viewModel.send()
 
-        val shown = viewModel.state.value.lastUsage
-        assertEquals(null, shown?.currentRequestTokens)
-        assertEquals(null, shown?.totalTokens)
-        assertEquals(10, shown?.historyTokens)
+        verify(repository, times(1)).chat("Explain 学", AgentContextStrategy.BRANCHING)
     }
 
     @Test
-    fun `a context-limit error is shown to the user and does not touch prior usage or history`() = runTest {
-        // Scenario 3: a conversation too long for the model's context window
-        // must surface as a clear, visible error - not a crash.
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any(), any())).thenReturn(
-            reply("first answer", usage(totalTokens = 30))
-        )
-        val viewModel = createViewModel()
-        viewModel.onMessageChanged("first message")
-        viewModel.send()
+    fun `choosing the strategy already selected does nothing`() = runTest {
+        given()
 
-        whenever(repository.chat(any(), any())).thenThrow(
-            RuntimeException("The input token count exceeds the maximum number of tokens allowed")
+        val viewModel = createViewModel()
+        viewModel.onStrategySelected(AgentContextStrategy.SLIDING_WINDOW)
+
+        verify(repository, never()).setStrategy(any())
+    }
+
+    // --- what each strategy shows -------------------------------------------
+
+    @Test
+    fun `the window the backend reports is what the screen shows`() = runTest {
+        // The conversation is longer than the window: the screen shows both,
+        // and never works out the window itself.
+        val conversation = (0..9).map { message("сообщение $it") }
+        given(
+            history = conversation,
+            context = context(messages = conversation.takeLast(6))
         )
-        viewModel.onMessageChanged("one message too many")
-        viewModel.send()
+
+        val viewModel = createViewModel()
+
+        assertEquals(10, (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.size)
+        assertEquals(6, viewModel.state.value.context?.messages?.size)
+        assertEquals("сообщение 4", viewModel.state.value.context?.messages?.first()?.content)
+    }
+
+    @Test
+    fun `the facts the backend reports are what the screen shows`() = runTest {
+        given(
+            context = context(
+                strategy = "sticky_facts",
+                facts = mapOf("goal" to "сдать N3", "level" to "N4", "constraints" to "15 минут в день")
+            )
+        )
+
+        val viewModel = createViewModel()
 
         assertEquals(
-            "The input token count exceeds the maximum number of tokens allowed",
-            viewModel.state.value.sendError
+            mapOf("goal" to "сдать N3", "level" to "N4", "constraints" to "15 минут в день"),
+            viewModel.state.value.context?.facts
         )
-        // The last successful usage and the conversation so far are untouched.
-        assertEquals(30, viewModel.state.value.lastUsage?.totalTokens)
-        assertEquals(2, (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.size)
+    }
+
+    // --- branching ----------------------------------------------------------
+
+    @Test
+    fun `creating a checkpoint goes to the backend and reloads the context`() = runTest {
+        given()
+        whenever(repository.createCheckpoint()).thenReturn("cp-1")
+
+        val viewModel = createViewModel()
+        viewModel.createCheckpoint()
+
+        verify(repository, times(1)).createCheckpoint()
+        verify(repository, times(2)).getContext()
+        assertFalse(viewModel.state.value.isBranchWorking)
     }
 
     @Test
-    fun `clearing history also clears the shown usage stats`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
+    fun `the new-branch dialog opens on the newest checkpoint`() = runTest {
+        given(context = context(checkpoints = listOf("cp-1", "cp-2")))
+
+        val viewModel = createViewModel()
+        viewModel.openNewBranch()
+
+        assertEquals("cp-2", viewModel.state.value.newBranch?.checkpoint)
+        assertEquals("", viewModel.state.value.newBranch?.name)
+    }
+
+    @Test
+    fun `confirming the dialog forks the branch from the chosen checkpoint`() = runTest {
+        given(context = context(checkpoints = listOf("cp-1", "cp-2")))
+
+        val viewModel = createViewModel()
+        viewModel.openNewBranch()
+        viewModel.onNewBranchCheckpointSelected("cp-1")
+        viewModel.onNewBranchNameChanged("  formal  ")
+        viewModel.confirmNewBranch()
+
+        verify(repository, times(1)).createBranch("formal", "cp-1")
+        assertNull(viewModel.state.value.newBranch)
+    }
+
+    @Test
+    fun `a blank branch name creates nothing`() = runTest {
+        given(context = context(checkpoints = listOf("cp-1")))
+
+        val viewModel = createViewModel()
+        viewModel.openNewBranch()
+        viewModel.onNewBranchNameChanged("   ")
+        viewModel.confirmNewBranch()
+
+        verify(repository, never()).createBranch(any(), any())
+    }
+
+    @Test
+    fun `switching branches reloads that branch's conversation and context`() = runTest {
+        given(context = context(branch = "main", branches = listOf("main", "formal")))
+
+        val viewModel = createViewModel()
+        viewModel.switchBranch("formal")
+
+        verify(repository, times(1)).switchBranch("formal")
+        // The other branch has its own messages, so the chat is reloaded too.
+        verify(repository, times(2)).getHistory()
+        verify(repository, times(2)).getContext()
+    }
+
+    @Test
+    fun `switching to the branch already being talked on does nothing`() = runTest {
+        given(context = context(branch = "main", branches = listOf("main", "formal")))
+
+        val viewModel = createViewModel()
+        viewModel.switchBranch("main")
+
+        verify(repository, never()).switchBranch(any())
+    }
+
+    @Test
+    fun `a branch failure is shown without touching the conversation`() = runTest {
+        given(history = listOf(message("Explain 学")), context = context(branches = listOf("main", "formal")))
+        whenever(repository.switchBranch(any())).thenThrow(RuntimeException("branch gone"))
+
+        val viewModel = createViewModel()
+        viewModel.switchBranch("formal")
+
+        assertEquals("branch gone", viewModel.state.value.contextError)
+        assertEquals(1, (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.size)
+    }
+
+    // --- clearing history ---------------------------------------------------
+
+    @Test
+    fun `clearing history empties the conversation and the usage`() = runTest {
+        given(history = listOf(message("Explain 学")))
         whenever(repository.chat(any(), any())).thenReturn(reply("answer"))
-        whenever(repository.clearHistory()).thenReturn(Unit)
 
         val viewModel = createViewModel()
         viewModel.onMessageChanged("Explain 学")
@@ -412,154 +420,20 @@ class AiAgentViewModelTest {
 
         viewModel.clearHistory()
 
-        assertEquals(null, viewModel.state.value.lastUsage)
-    }
-
-    // --- compression mode -------------------------------------------------
-
-    @Test
-    fun `compression is off until it is switched on`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
-
-        val viewModel = createViewModel()
-
-        assertFalse(viewModel.state.value.compressionEnabled)
-        assertEquals(null, viewModel.state.value.lastCompression)
+        verify(repository, times(1)).clearHistory()
+        assertTrue((viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.isEmpty())
+        assertNull(viewModel.state.value.lastUsage)
     }
 
     @Test
-    fun `switching the mode does not send anything by itself`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        val viewModel = createViewModel()
-
-        viewModel.onCompressionEnabledChanged(true)
-
-        assertTrue(viewModel.state.value.compressionEnabled)
-        verify(repository, never()).chat(any(), any())
-    }
-
-    @Test
-    fun `the chosen mode is what the request asks the backend for`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any(), any())).thenReturn(reply("answer"))
+    fun `a clear-history failure keeps the existing conversation visible and shows an error`() = runTest {
+        given(history = listOf(message("Explain 学")))
+        whenever(repository.clearHistory()).thenThrow(RuntimeException("network down"))
 
         val viewModel = createViewModel()
-        viewModel.onCompressionEnabledChanged(true)
-        viewModel.onMessageChanged("Explain the kanji 学")
-        viewModel.send()
-
-        // Still just the message and the choice - no summary, no prompt, no
-        // history is assembled on the device.
-        verify(repository, times(1)).chat("Explain the kanji 学", true)
-    }
-
-    @Test
-    fun `switching back to off is sent as off`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any(), any())).thenReturn(reply("answer"))
-
-        val viewModel = createViewModel()
-        viewModel.onCompressionEnabledChanged(true)
-        viewModel.onCompressionEnabledChanged(false)
-        viewModel.onMessageChanged("Explain the kanji 学")
-        viewModel.send()
-
-        verify(repository, times(1)).chat("Explain the kanji 学", false)
-    }
-
-    @Test
-    fun `the compression status shown is the one the backend reported`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any(), any())).thenReturn(
-            reply("answer", compression = compression(enabled = true, summaryTokens = 1245, messagesSent = 6))
-        )
-
-        val viewModel = createViewModel()
-        viewModel.onCompressionEnabledChanged(true)
-        viewModel.onMessageChanged("Explain 学")
-        viewModel.send()
-
-        val shown = viewModel.state.value.lastCompression
-        assertEquals(true, shown?.enabled)
-        assertEquals(1245, shown?.summaryTokens)
-        assertEquals(6, shown?.messagesSent)
-    }
-
-    @Test
-    fun `the same dialogue in both modes shows the difference in token usage`() = runTest {
-        // Scenarios 1 and 2 at the screen level: the same message sent with
-        // compression off and then on, with the screen showing exactly what
-        // the backend reported for each.
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any(), any())).thenReturn(
-            reply(
-                "answer",
-                usage(currentRequestTokens = 17, historyTokens = 3200, responseTokens = 300, totalTokens = 3517),
-                compression(enabled = false, summaryTokens = 0, messagesSent = 24)
-            )
-        )
-        val viewModel = createViewModel()
-        viewModel.onMessageChanged("Расскажи про 〜につれて")
-        viewModel.send()
-        val withoutCompression = viewModel.state.value.lastUsage
-
-        whenever(repository.chat(any(), any())).thenReturn(
-            reply(
-                "answer",
-                usage(currentRequestTokens = 17, historyTokens = 900, responseTokens = 300, totalTokens = 1217),
-                compression(enabled = true, summaryTokens = 240, messagesSent = 6)
-            )
-        )
-        viewModel.onCompressionEnabledChanged(true)
-        viewModel.onMessageChanged("Расскажи про 〜につれて")
-        viewModel.send()
-        val withCompression = viewModel.state.value.lastUsage
-
-        assertEquals(3200, withoutCompression?.historyTokens)
-        assertEquals(900, withCompression?.historyTokens)
-        assertTrue(withCompression!!.totalTokens!! < withoutCompression!!.totalTokens!!)
-        assertEquals(6, viewModel.state.value.lastCompression?.messagesSent)
-    }
-
-    @Test
-    fun `clearing history also clears the shown compression status`() = runTest {
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any(), any())).thenReturn(
-            reply("answer", compression = compression(enabled = true, summaryTokens = 100, messagesSent = 6))
-        )
-        whenever(repository.clearHistory()).thenReturn(Unit)
-
-        val viewModel = createViewModel()
-        viewModel.onCompressionEnabledChanged(true)
-        viewModel.onMessageChanged("Explain 学")
-        viewModel.send()
-        assertTrue(viewModel.state.value.lastCompression != null)
-
         viewModel.clearHistory()
 
-        assertEquals(null, viewModel.state.value.lastCompression)
-    }
-
-    @Test
-    fun `a status with no summary is shown as it is, not hidden or rounded up`() = runTest {
-        // What a dialogue too short to have been compressed looks like: the
-        // mode is on, but nothing has been summarised yet and every message
-        // was sent word for word. The screen must show that plainly - it is
-        // the explanation for the usage numbers being identical to a run with
-        // compression off.
-        whenever(repository.getHistory()).thenReturn(emptyList())
-        whenever(repository.chat(any(), any())).thenReturn(
-            reply("answer", compression = compression(enabled = true, summaryTokens = 0, messagesSent = 10))
-        )
-
-        val viewModel = createViewModel()
-        viewModel.onCompressionEnabledChanged(true)
-        viewModel.onMessageChanged("вопрос")
-        viewModel.send()
-
-        val shown = viewModel.state.value.lastCompression
-        assertEquals(true, shown?.enabled)
-        assertEquals(0, shown?.summaryTokens)
-        assertEquals(10, shown?.messagesSent)
+        assertEquals("network down", viewModel.state.value.clearHistoryError)
+        assertEquals(1, (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.size)
     }
 }

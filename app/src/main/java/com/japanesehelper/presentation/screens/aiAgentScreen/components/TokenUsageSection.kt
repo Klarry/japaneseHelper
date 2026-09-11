@@ -28,6 +28,6 @@ fun TokenUsageSection(usage: AgentTokenUsage, modifier: Modifier = Modifier) {
     )
 }
 
-/** Shared with [CompressionStatusSection]: a count the backend could not
- * report is shown as a dash instead of being guessed at. */
+/** A count the backend could not report is shown as a dash instead of being
+ * guessed at. */
 internal fun Int?.orDash(): String = this?.toString() ?: NO_TOKEN_COUNT
