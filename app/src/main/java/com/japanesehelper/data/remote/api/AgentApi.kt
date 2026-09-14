@@ -8,6 +8,7 @@ import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentCheckpointResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
+import com.japanesehelper.data.remote.dto.AgentMemoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentStrategyRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyResponseDto
 import retrofit2.http.Body
@@ -15,6 +16,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Path
 
 interface AgentApi {
 
@@ -50,4 +52,14 @@ interface AgentApi {
     suspend fun switchBranch(
         @Body request: AgentBranchSwitchRequestDto
     ): AgentBranchResponseDto
+
+    @GET("agent/memory")
+    suspend fun getMemory(): AgentMemoryResponseDto
+
+    /** Empties one layer. The other two are left exactly as they are - which
+     * is the backend's guarantee, not something checked here. */
+    @DELETE("agent/memory/{layer}")
+    suspend fun clearMemoryLayer(
+        @Path("layer") layer: String
+    ): AgentMemoryResponseDto
 }

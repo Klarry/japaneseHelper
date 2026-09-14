@@ -2,6 +2,8 @@ package com.japanesehelper.domain.repository
 
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentContextStrategy
+import com.japanesehelper.domain.model.AgentMemory
+import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentReply
 
@@ -14,4 +16,6 @@ interface AgentRepository {
     suspend fun createCheckpoint(): String
     suspend fun createBranch(name: String, checkpoint: String)
     suspend fun switchBranch(name: String)
+    suspend fun getMemory(): AgentMemory
+    suspend fun clearMemoryLayer(layer: AgentMemoryLayer): AgentMemory
 }

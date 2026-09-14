@@ -80,4 +80,20 @@
     <string name="ai_agent_branch_from_checkpoint">From checkpoint</string>
     <string name="ai_agent_branch_create">Create</string>
     <string name="ai_agent_branch_cancel">Cancel</string>
+    <string name="ai_agent_strategy_layered_memory">Layered Memory</string>
+    <string name="ai_agent_memory_short_term_title">Short-term</string>
+    <string name="ai_agent_memory_working_title">Working</string>
+    <string name="ai_agent_memory_long_term_title">Long-term</string>
+    <string name="ai_agent_memory_clear_button">Clear</string>
+    <string name="ai_agent_memory_empty">Nothing remembered yet</string>
+    <string name="ai_agent_memory_goal">Goal</string>
+    <string name="ai_agent_memory_requirement">Requirement</string>
+    <string name="ai_agent_memory_constraint">Constraint</string>
+    <string name="ai_agent_memory_decision">Decision</string>
+    <string name="ai_agent_memory_preference">Preference</string>
+    <string name="ai_agent_memory_knows">Knows</string>
+    <plurals name="ai_agent_memory_messages">
+        <item quantity="one">%1$d message in this conversation</item>
+        <item quantity="other">%1$d messages in this conversation</item>
+    </plurals>
 </resources>

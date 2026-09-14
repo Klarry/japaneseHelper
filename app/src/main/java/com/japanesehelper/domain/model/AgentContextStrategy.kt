@@ -8,7 +8,8 @@ package com.japanesehelper.domain.model
 enum class AgentContextStrategy(val wireName: String) {
     SLIDING_WINDOW("sliding_window"),
     STICKY_FACTS("sticky_facts"),
-    BRANCHING("branching");
+    BRANCHING("branching"),
+    LAYERED_MEMORY("layered_memory");
 
     companion object {
         fun fromWireName(wireName: String): AgentContextStrategy? =

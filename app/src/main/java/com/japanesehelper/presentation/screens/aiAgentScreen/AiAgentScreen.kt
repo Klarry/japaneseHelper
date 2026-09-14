@@ -28,6 +28,7 @@ import com.japanesehelper.presentation.screens.aiAgentScreen.components.ClearHis
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextStrategyTabRow
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.CreateBranchDialog
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.MemoryLayersSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TokenUsageSection
 import com.japanesehelper.presentation.screens.homeScreen.components.ErrorWithRetry
 import com.japanesehelper.presentation.screens.homeScreen.components.ScreenTopBar
@@ -45,11 +46,12 @@ private const val MAX_INPUT_LINES = 4
  * its own, while the input and the readouts stay put underneath it.
  *
  * The Context Strategy tabs choose how the backend assembles what it sends -
- * the newest messages only, a key-value memory of what matters, or the branch
- * being talked on. Choosing is all this screen does: it never trims the
- * history or builds facts itself, and what it shows under the input is what
- * the backend reports it would send. The existing Token Usage block is what
- * makes the difference between the strategies visible.
+ * the newest messages only, a key-value memory of what matters, the branch
+ * being talked on, or the three memory layers kept apart. Choosing is all
+ * this screen does: it never trims the history, builds facts or decides what
+ * belongs in a memory layer, and what it shows under the input is what the
+ * backend reports it would send. The existing Token Usage block is what makes
+ * the difference between the strategies visible.
  */
 @Composable
 fun AiAgentScreen(
@@ -138,6 +140,14 @@ fun AiAgentScreen(
                         }
 
                         ContextSection(strategy = state.strategy, context = state.context)
+
+                        if (state.strategy == AgentContextStrategy.LAYERED_MEMORY) {
+                            MemoryLayersSection(
+                                memory = state.memory,
+                                isWorking = state.isMemoryWorking,
+                                onClearLayer = viewModel::clearMemoryLayer
+                            )
+                        }
 
                         val contextError = state.contextError
                         if (contextError != null) {

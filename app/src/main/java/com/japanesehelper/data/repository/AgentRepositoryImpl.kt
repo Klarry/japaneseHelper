@@ -8,6 +8,8 @@ import com.japanesehelper.data.remote.dto.AgentChatRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyRequestDto
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentContextStrategy
+import com.japanesehelper.domain.model.AgentMemory
+import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.repository.AgentRepository
@@ -55,4 +57,13 @@ class AgentRepositoryImpl @Inject constructor(
         agentApi.switchBranch(AgentBranchSwitchRequestDto(name = name))
         Unit
     }
+
+    override suspend fun getMemory(): AgentMemory = withContext(Dispatchers.IO) {
+        agentApi.getMemory().toDomain()
+    }
+
+    override suspend fun clearMemoryLayer(layer: AgentMemoryLayer): AgentMemory =
+        withContext(Dispatchers.IO) {
+            agentApi.clearMemoryLayer(layer.wireName).toDomain()
+        }
 }

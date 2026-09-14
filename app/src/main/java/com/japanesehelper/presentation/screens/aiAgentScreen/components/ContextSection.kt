@@ -14,8 +14,8 @@ private const val PREVIEW_LENGTH = 44
 /**
  * What the chosen strategy is currently holding, straight from the backend's
  * context: the messages still inside the window, or the facts kept instead of
- * them. Branching says it with the branch chips above the conversation, so it
- * adds nothing here.
+ * them. Branching and layered memory each say it in their own block, so they
+ * add nothing here.
  */
 @Composable
 fun ContextSection(
@@ -44,7 +44,10 @@ fun ContextSection(
             modifier = modifier
         )
 
-        AgentContextStrategy.BRANCHING -> Unit
+        // Branching says it with the branch chips above the conversation,
+        // and layered memory with its own block of layers - neither adds a
+        // line here.
+        AgentContextStrategy.BRANCHING, AgentContextStrategy.LAYERED_MEMORY -> Unit
     }
 }
 

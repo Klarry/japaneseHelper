@@ -2,10 +2,15 @@ package com.japanesehelper
 
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentContextStrategy
+import com.japanesehelper.domain.model.AgentLongTermMemory
+import com.japanesehelper.domain.model.AgentMemory
+import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentReply
+import com.japanesehelper.domain.model.AgentShortTermMemory
 import com.japanesehelper.domain.model.AgentTokenUsage
+import com.japanesehelper.domain.model.AgentWorkingMemory
 import com.japanesehelper.domain.repository.AgentRepository
 import com.japanesehelper.presentation.viewmodel.AiAgentViewModel
 import com.japanesehelper.presentation.viewmodel.screendata.AgentHistoryUiState
@@ -65,6 +70,17 @@ class AiAgentViewModelTest {
         whenever(repository.getContext()).thenReturn(context)
     }
 
+    private fun memory(
+        messages: List<AgentMessage> = emptyList(),
+        goals: List<String> = emptyList(),
+        constraints: List<String> = emptyList(),
+        profile: Map<String, String> = emptyMap()
+    ) = AgentMemory(
+        shortTerm = AgentShortTermMemory(messages),
+        working = AgentWorkingMemory(goals = goals, constraints = constraints),
+        longTerm = AgentLongTermMemory(profile = profile)
+    )
+
     /** Every method already behaves, so a test overrides only what it is about. */
     private open class FakeAgentRepository : AgentRepository {
         override suspend fun chat(message: String, strategy: AgentContextStrategy): AgentReply =
@@ -79,6 +95,8 @@ class AiAgentViewModelTest {
         override suspend fun createCheckpoint(): String = "cp-1"
         override suspend fun createBranch(name: String, checkpoint: String) = Unit
         override suspend fun switchBranch(name: String) = Unit
+        override suspend fun getMemory(): AgentMemory = AgentMemory()
+        override suspend fun clearMemoryLayer(layer: AgentMemoryLayer): AgentMemory = AgentMemory()
     }
 
     // --- opening the screen -------------------------------------------------
@@ -435,5 +453,94 @@ class AiAgentViewModelTest {
 
         assertEquals("network down", viewModel.state.value.clearHistoryError)
         assertEquals(1, (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.size)
+    }
+
+    // --- memory layers ------------------------------------------------------
+
+    @Test
+    fun `the memory layers are read back only under the layered strategy`() = runTest {
+        given(context = context(strategy = "sliding_window"))
+
+        val viewModel = createViewModel()
+
+        assertNull(viewModel.state.value.memory)
+        verify(repository, never()).getMemory()
+    }
+
+    @Test
+    fun `choosing layered memory loads the three layers`() = runTest {
+        given(context = context(strategy = "sliding_window"))
+        whenever(repository.getMemory()).thenReturn(memory(profile = mapOf("favorite_word" to "学習")))
+        val viewModel = createViewModel()
+
+        viewModel.onStrategySelected(AgentContextStrategy.LAYERED_MEMORY)
+
+        verify(repository, times(1)).setStrategy(AgentContextStrategy.LAYERED_MEMORY)
+        assertEquals("学習", viewModel.state.value.memory?.longTerm?.profile?.get("favorite_word"))
+    }
+
+    @Test
+    fun `leaving layered memory stops showing the layers`() = runTest {
+        given(context = context(strategy = "layered_memory"))
+        whenever(repository.getMemory()).thenReturn(memory(profile = mapOf("favorite_word" to "学習")))
+        val viewModel = createViewModel()
+
+        viewModel.onStrategySelected(AgentContextStrategy.SLIDING_WINDOW)
+
+        assertNull(viewModel.state.value.memory)
+    }
+
+    @Test
+    fun `clearing one layer shows what the backend left in the other two`() = runTest {
+        given(context = context(strategy = "layered_memory"))
+        whenever(repository.getMemory()).thenReturn(
+            memory(constraints = listOf("уровень N4"), profile = mapOf("favorite_word" to "学習"))
+        )
+        whenever(repository.clearMemoryLayer(AgentMemoryLayer.WORKING)).thenReturn(
+            memory(profile = mapOf("favorite_word" to "学習"))
+        )
+        val viewModel = createViewModel()
+
+        viewModel.clearMemoryLayer(AgentMemoryLayer.WORKING)
+
+        val memory = viewModel.state.value.memory
+        assertEquals(emptyList<String>(), memory?.working?.constraints)
+        assertEquals("学習", memory?.longTerm?.profile?.get("favorite_word"))
+    }
+
+    @Test
+    fun `clearing short-term memory empties the conversation on screen`() = runTest {
+        given(
+            history = listOf(message("Давай создадим пример")),
+            context = context(strategy = "layered_memory")
+        )
+        whenever(repository.getMemory()).thenReturn(memory(messages = listOf(message("Давай создадим пример"))))
+        whenever(repository.clearMemoryLayer(AgentMemoryLayer.SHORT_TERM)).thenReturn(
+            memory(profile = mapOf("favorite_word" to "学習"))
+        )
+        val viewModel = createViewModel()
+
+        viewModel.clearMemoryLayer(AgentMemoryLayer.SHORT_TERM)
+
+        val history = viewModel.state.value.history
+        assertTrue(history is AgentHistoryUiState.Loaded)
+        assertEquals(0, (history as AgentHistoryUiState.Loaded).messages.size)
+        assertNull(viewModel.state.value.lastUsage)
+        assertEquals("学習", viewModel.state.value.memory?.longTerm?.profile?.get("favorite_word"))
+    }
+
+    @Test
+    fun `a failed clear surfaces as an error and leaves the layers alone`() = runTest {
+        given(context = context(strategy = "layered_memory"))
+        whenever(repository.getMemory()).thenReturn(memory(constraints = listOf("уровень N4")))
+        whenever(repository.clearMemoryLayer(AgentMemoryLayer.LONG_TERM))
+            .thenThrow(RuntimeException("network down"))
+        val viewModel = createViewModel()
+
+        viewModel.clearMemoryLayer(AgentMemoryLayer.LONG_TERM)
+
+        assertFalse(viewModel.state.value.isMemoryWorking)
+        assertEquals("network down", viewModel.state.value.contextError)
+        assertEquals(listOf("уровень N4"), viewModel.state.value.memory?.working?.constraints)
     }
 }

@@ -3,6 +3,7 @@ package com.japanesehelper.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.japanesehelper.domain.model.AgentContextStrategy
+import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.repository.AgentRepository
@@ -218,6 +219,42 @@ class AiAgentViewModel @Inject constructor(
         }
     }
 
+    // --- memory layers -----------------------------------------------------
+
+    /**
+     * Empty one layer. The backend leaves the other two alone, so the answer
+     * it returns is the whole new state of the memory - there is nothing to
+     * reconcile here. Clearing short-term memory also empties the
+     * conversation, so the chat is reloaded with it.
+     */
+    fun clearMemoryLayer(layer: AgentMemoryLayer) {
+        if (_state.value.isMemoryWorking) return
+
+        _state.value = _state.value.copy(isMemoryWorking = true, contextError = null)
+
+        viewModelScope.launch {
+            val memory = try {
+                agentRepository.clearMemoryLayer(layer)
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                _state.value = _state.value.copy(isMemoryWorking = false, contextError = e.toErrorMessage())
+                return@launch
+            }
+
+            _state.value = _state.value.copy(isMemoryWorking = false, memory = memory)
+
+            if (layer == AgentMemoryLayer.SHORT_TERM) {
+                _state.value = _state.value.copy(
+                    history = AgentHistoryUiState.Loaded(memory.shortTerm.messages),
+                    lastUsage = null
+                )
+            }
+
+            // The answer already carries the whole new memory, so only the
+            // context readout is left to bring up to date.
+            refreshContextOnly()
+        }
+    }
+
     // --- internals ---------------------------------------------------------
 
     private fun loadContext(alignStrategy: Boolean) {
@@ -238,6 +275,7 @@ class AiAgentViewModel @Inject constructor(
 
             if (known != null) {
                 _state.value = _state.value.copy(context = context, strategy = known, contextError = null)
+                refreshMemory()
                 return@launch
             }
 
@@ -256,8 +294,29 @@ class AiAgentViewModel @Inject constructor(
     }
 
     private suspend fun refreshContext() {
+        refreshContextOnly()
+        refreshMemory()
+    }
+
+    private suspend fun refreshContextOnly() {
         try {
             _state.value = _state.value.copy(context = agentRepository.getContext(), contextError = null)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            _state.value = _state.value.copy(contextError = e.toErrorMessage())
+        }
+    }
+
+    /** Only the layered-memory strategy writes to the layers, so only it
+     * needs them read back - the other strategies would be asking for a
+     * readout they never show. */
+    private suspend fun refreshMemory() {
+        if (_state.value.strategy != AgentContextStrategy.LAYERED_MEMORY) {
+            _state.value = _state.value.copy(memory = null)
+            return
+        }
+
+        try {
+            _state.value = _state.value.copy(memory = agentRepository.getMemory(), contextError = null)
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             _state.value = _state.value.copy(contextError = e.toErrorMessage())
         }
