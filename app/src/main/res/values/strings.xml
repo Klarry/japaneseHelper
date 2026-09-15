@@ -92,6 +92,15 @@
     <string name="ai_agent_memory_decision">Decision</string>
     <string name="ai_agent_memory_preference">Preference</string>
     <string name="ai_agent_memory_knows">Knows</string>
+    <string name="ai_agent_profile_title">User profile</string>
+    <string name="ai_agent_profile_empty">Not set</string>
+    <string name="ai_agent_profile_edit_button">Edit</string>
+    <string name="ai_agent_profile_dialog_title">User profile</string>
+    <string name="ai_agent_profile_level">Japanese level</string>
+    <string name="ai_agent_profile_style">Explanation style</string>
+    <string name="ai_agent_profile_format">Answer format</string>
+    <string name="ai_agent_profile_translation">Translation language</string>
+    <string name="ai_agent_profile_save">Save</string>
     <plurals name="ai_agent_memory_messages">
         <item quantity="one">%1$d message in this conversation</item>
         <item quantity="other">%1$d messages in this conversation</item>

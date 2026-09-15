@@ -7,6 +7,8 @@ import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentLongTermMemoryDto
 import com.japanesehelper.data.remote.dto.AgentMemoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentShortTermMemoryDto
+import com.japanesehelper.data.remote.dto.AgentUserProfileDto
+import com.japanesehelper.data.remote.dto.AgentUserProfileRequestDto
 import com.japanesehelper.data.remote.dto.AgentWorkingMemoryDto
 import com.japanesehelper.data.remote.dto.AgentUsageDto
 import com.japanesehelper.domain.model.AgentContext
@@ -17,6 +19,7 @@ import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
 import com.japanesehelper.domain.model.AgentTokenUsage
+import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.model.AgentWorkingMemory
 
 fun AgentChatResponseDto.toDomain(): AgentReply {
@@ -71,4 +74,18 @@ fun AgentMemoryResponseDto.toDomain(): AgentMemory = AgentMemory(
     shortTerm = shortTerm.toDomain(),
     working = working.toDomain(),
     longTerm = longTerm.toDomain()
+)
+
+fun AgentUserProfileDto.toDomain(): AgentUserProfile = AgentUserProfile(
+    japaneseLevel = japaneseLevel,
+    explanationStyle = explanationStyle,
+    answerFormat = answerFormat,
+    translationLanguage = translationLanguage
+)
+
+fun AgentUserProfile.toRequestDto(): AgentUserProfileRequestDto = AgentUserProfileRequestDto(
+    japaneseLevel = japaneseLevel,
+    explanationStyle = explanationStyle,
+    answerFormat = answerFormat,
+    translationLanguage = translationLanguage
 )

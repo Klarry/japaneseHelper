@@ -9,6 +9,8 @@ import com.japanesehelper.data.remote.dto.AgentCheckpointResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentMemoryResponseDto
+import com.japanesehelper.data.remote.dto.AgentUserProfileDto
+import com.japanesehelper.data.remote.dto.AgentUserProfileRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyResponseDto
 import retrofit2.http.Body
@@ -62,4 +64,12 @@ interface AgentApi {
     suspend fun clearMemoryLayer(
         @Path("layer") layer: String
     ): AgentMemoryResponseDto
+
+    @GET("agent/profile")
+    suspend fun getProfile(): AgentUserProfileDto
+
+    @PUT("agent/profile")
+    suspend fun updateProfile(
+        @Body request: AgentUserProfileRequestDto
+    ): AgentUserProfileDto
 }

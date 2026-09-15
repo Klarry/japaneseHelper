@@ -6,10 +6,13 @@ import com.japanesehelper.domain.model.AgentContextStrategy
 import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
+import com.japanesehelper.domain.model.AgentProfilePreset
+import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.repository.AgentRepository
 import com.japanesehelper.presentation.viewmodel.screendata.AgentHistoryUiState
 import com.japanesehelper.presentation.viewmodel.screendata.AiAgentScreenState
 import com.japanesehelper.presentation.viewmodel.screendata.NewBranchState
+import com.japanesehelper.presentation.viewmodel.screendata.ProfileEditorState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,6 +42,7 @@ class AiAgentViewModel @Inject constructor(
     init {
         loadHistory()
         loadContext(alignStrategy = true)
+        loadProfile()
     }
 
     fun loadHistory() {
@@ -216,6 +220,62 @@ class AiAgentViewModel @Inject constructor(
             loadHistory()
             refreshContext()
             _state.value = _state.value.copy(isBranchWorking = false, lastUsage = null)
+        }
+    }
+
+    // --- user profile ------------------------------------------------------
+
+    fun loadProfile() {
+        viewModelScope.launch { refreshProfile() }
+    }
+
+    /** Switch to one of the two profiles the comparison is made with. One
+     * tap so the same question can be asked again immediately. */
+    fun applyPreset(preset: AgentProfilePreset) {
+        saveProfile(preset.profile)
+    }
+
+    fun openProfileEditor() {
+        _state.value = _state.value.copy(
+            profileEditor = ProfileEditorState(_state.value.profile ?: AgentUserProfile())
+        )
+    }
+
+    fun onProfileEdited(profile: AgentUserProfile) {
+        val editor = _state.value.profileEditor ?: return
+        _state.value = _state.value.copy(profileEditor = editor.copy(profile = profile))
+    }
+
+    fun dismissProfileEditor() {
+        _state.value = _state.value.copy(profileEditor = null)
+    }
+
+    fun confirmProfileEdit() {
+        val editor = _state.value.profileEditor ?: return
+        _state.value = _state.value.copy(profileEditor = null)
+        saveProfile(editor.profile)
+    }
+
+    private fun saveProfile(profile: AgentUserProfile) {
+        if (_state.value.isProfileWorking) return
+
+        _state.value = _state.value.copy(isProfileWorking = true, profileError = null)
+
+        viewModelScope.launch {
+            try {
+                val saved = agentRepository.updateProfile(profile)
+                _state.value = _state.value.copy(isProfileWorking = false, profile = saved)
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                _state.value = _state.value.copy(isProfileWorking = false, profileError = e.toErrorMessage())
+            }
+        }
+    }
+
+    private suspend fun refreshProfile() {
+        try {
+            _state.value = _state.value.copy(profile = agentRepository.getProfile(), profileError = null)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            _state.value = _state.value.copy(profileError = e.toErrorMessage())
         }
     }
 

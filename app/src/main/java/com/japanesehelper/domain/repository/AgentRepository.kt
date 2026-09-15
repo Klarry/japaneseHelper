@@ -6,6 +6,7 @@ import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentReply
+import com.japanesehelper.domain.model.AgentUserProfile
 
 interface AgentRepository {
     suspend fun chat(message: String, strategy: AgentContextStrategy): AgentReply
@@ -18,4 +19,6 @@ interface AgentRepository {
     suspend fun switchBranch(name: String)
     suspend fun getMemory(): AgentMemory
     suspend fun clearMemoryLayer(layer: AgentMemoryLayer): AgentMemory
+    suspend fun getProfile(): AgentUserProfile
+    suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile
 }

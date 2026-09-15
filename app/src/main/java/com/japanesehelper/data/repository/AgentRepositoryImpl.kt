@@ -1,6 +1,7 @@
 package com.japanesehelper.data.repository
 
 import com.japanesehelper.data.mapper.toDomain
+import com.japanesehelper.data.mapper.toRequestDto
 import com.japanesehelper.data.remote.api.AgentApi
 import com.japanesehelper.data.remote.dto.AgentBranchRequestDto
 import com.japanesehelper.data.remote.dto.AgentBranchSwitchRequestDto
@@ -12,6 +13,7 @@ import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentReply
+import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.repository.AgentRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -65,5 +67,14 @@ class AgentRepositoryImpl @Inject constructor(
     override suspend fun clearMemoryLayer(layer: AgentMemoryLayer): AgentMemory =
         withContext(Dispatchers.IO) {
             agentApi.clearMemoryLayer(layer.wireName).toDomain()
+        }
+
+    override suspend fun getProfile(): AgentUserProfile = withContext(Dispatchers.IO) {
+        agentApi.getProfile().toDomain()
+    }
+
+    override suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile =
+        withContext(Dispatchers.IO) {
+            agentApi.updateProfile(profile.toRequestDto()).toDomain()
         }
 }

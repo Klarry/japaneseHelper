@@ -28,8 +28,10 @@ import com.japanesehelper.presentation.screens.aiAgentScreen.components.ClearHis
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextStrategyTabRow
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.CreateBranchDialog
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.EditProfileDialog
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.MemoryLayersSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TokenUsageSection
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.UserProfileSection
 import com.japanesehelper.presentation.screens.homeScreen.components.ErrorWithRetry
 import com.japanesehelper.presentation.screens.homeScreen.components.ScreenTopBar
 import com.japanesehelper.presentation.theme.LocalAppPadding
@@ -52,6 +54,11 @@ private const val MAX_INPUT_LINES = 4
  * belongs in a memory layer, and what it shows under the input is what the
  * backend reports it would send. The existing Token Usage block is what makes
  * the difference between the strategies visible.
+ *
+ * The User Profile block underneath is a setting rather than a strategy: the
+ * backend applies it to every request whatever the strategy, so the learner
+ * never repeats their level or format in a message. Switching between the two
+ * profiles and asking the same question again is the whole comparison.
  */
 @Composable
 fun AiAgentScreen(
@@ -134,6 +141,22 @@ fun AiAgentScreen(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(padding.quarter)
                     ) {
+                        UserProfileSection(
+                            profile = state.profile,
+                            isWorking = state.isProfileWorking,
+                            onPresetSelected = viewModel::applyPreset,
+                            onEdit = viewModel::openProfileEditor
+                        )
+
+                        val profileError = state.profileError
+                        if (profileError != null) {
+                            Text(
+                                text = profileError,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+
                         val lastUsage = state.lastUsage
                         if (lastUsage != null) {
                             TokenUsageSection(usage = lastUsage)
@@ -171,6 +194,16 @@ fun AiAgentScreen(
                     ErrorWithRetry(message = clearError, onRetry = viewModel::clearHistory)
                 }
             }
+        }
+
+        val profileEditor = state.profileEditor
+        if (profileEditor != null) {
+            EditProfileDialog(
+                profile = profileEditor.profile,
+                onProfileChanged = viewModel::onProfileEdited,
+                onConfirm = viewModel::confirmProfileEdit,
+                onDismiss = viewModel::dismissProfileEditor
+            )
         }
 
         val newBranch = state.newBranch

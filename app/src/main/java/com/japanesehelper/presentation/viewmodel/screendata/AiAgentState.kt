@@ -5,12 +5,19 @@ import com.japanesehelper.domain.model.AgentContextStrategy
 import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentTokenUsage
+import com.japanesehelper.domain.model.AgentUserProfile
 
 sealed class AgentHistoryUiState {
     data object Loading : AgentHistoryUiState()
     data class Error(val message: String) : AgentHistoryUiState()
     data class Loaded(val messages: List<AgentMessage>) : AgentHistoryUiState()
 }
+
+/** The profile editor while it is open: the settings as they are being
+ * edited, before they are sent. */
+data class ProfileEditorState(
+    val profile: AgentUserProfile
+)
 
 /** The "new branch" dialog while it is open. */
 data class NewBranchState(
@@ -39,6 +46,12 @@ data class AiAgentScreenState(
      * strategy that writes to them. */
     val memory: AgentMemory? = null,
     val isMemoryWorking: Boolean = false,
+    /** How the learner wants to be answered. Kept and applied on the
+     * backend; the screen shows it and sends changes. */
+    val profile: AgentUserProfile? = null,
+    val isProfileWorking: Boolean = false,
+    val profileError: String? = null,
+    val profileEditor: ProfileEditorState? = null,
     /** Token usage for the last successful send this session - not part of
      * persisted history, so it starts empty on every screen open. */
     val lastUsage: AgentTokenUsage? = null

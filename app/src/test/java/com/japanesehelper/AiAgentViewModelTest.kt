@@ -7,9 +7,11 @@ import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
+import com.japanesehelper.domain.model.AgentProfilePreset
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
 import com.japanesehelper.domain.model.AgentTokenUsage
+import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.model.AgentWorkingMemory
 import com.japanesehelper.domain.repository.AgentRepository
 import com.japanesehelper.presentation.viewmodel.AiAgentViewModel
@@ -97,6 +99,8 @@ class AiAgentViewModelTest {
         override suspend fun switchBranch(name: String) = Unit
         override suspend fun getMemory(): AgentMemory = AgentMemory()
         override suspend fun clearMemoryLayer(layer: AgentMemoryLayer): AgentMemory = AgentMemory()
+        override suspend fun getProfile(): AgentUserProfile = AgentUserProfile()
+        override suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile = profile
     }
 
     // --- opening the screen -------------------------------------------------
@@ -542,5 +546,130 @@ class AiAgentViewModelTest {
         assertFalse(viewModel.state.value.isMemoryWorking)
         assertEquals("network down", viewModel.state.value.contextError)
         assertEquals(listOf("уровень N4"), viewModel.state.value.memory?.working?.constraints)
+    }
+
+    // --- user profile -------------------------------------------------------
+
+    @Test
+    fun `the profile is loaded when the screen opens`() = runTest {
+        given()
+        whenever(repository.getProfile()).thenReturn(AgentProfilePreset.A.profile)
+
+        val viewModel = createViewModel()
+
+        verify(repository, times(1)).getProfile()
+        assertEquals("N4", viewModel.state.value.profile?.japaneseLevel)
+    }
+
+    @Test
+    fun `choosing a preset sends that whole profile to the backend`() = runTest {
+        given()
+        whenever(repository.getProfile()).thenReturn(AgentUserProfile())
+        whenever(repository.updateProfile(any())).thenReturn(AgentProfilePreset.B.profile)
+        val viewModel = createViewModel()
+
+        viewModel.applyPreset(AgentProfilePreset.B)
+
+        verify(repository, times(1)).updateProfile(AgentProfilePreset.B.profile)
+        assertEquals(AgentProfilePreset.B.profile, viewModel.state.value.profile)
+    }
+
+    /** The backend owns the profile: a value it normalises comes back and
+     * wins over what was sent. */
+    @Test
+    fun `the screen shows the profile the backend saved, not the one it sent`() = runTest {
+        given()
+        whenever(repository.getProfile()).thenReturn(AgentUserProfile())
+        whenever(repository.updateProfile(any())).thenReturn(
+            AgentProfilePreset.A.profile.copy(japaneseLevel = "N3")
+        )
+        val viewModel = createViewModel()
+
+        viewModel.applyPreset(AgentProfilePreset.A)
+
+        assertEquals("N3", viewModel.state.value.profile?.japaneseLevel)
+    }
+
+    @Test
+    fun `switching profiles does not touch the conversation`() = runTest {
+        given(history = listOf(message("Объясни слово 学習")))
+        whenever(repository.getProfile()).thenReturn(AgentUserProfile())
+        whenever(repository.updateProfile(any())).thenReturn(AgentProfilePreset.B.profile)
+        val viewModel = createViewModel()
+
+        viewModel.applyPreset(AgentProfilePreset.B)
+
+        verify(repository, never()).clearHistory()
+        val history = viewModel.state.value.history
+        assertEquals(1, (history as AgentHistoryUiState.Loaded).messages.size)
+    }
+
+    @Test
+    fun `the editor starts from the profile currently in force`() = runTest {
+        given()
+        whenever(repository.getProfile()).thenReturn(AgentProfilePreset.A.profile)
+        val viewModel = createViewModel()
+
+        viewModel.openProfileEditor()
+
+        assertEquals(AgentProfilePreset.A.profile, viewModel.state.value.profileEditor?.profile)
+    }
+
+    @Test
+    fun `edits are only sent when the dialog is confirmed`() = runTest {
+        given()
+        whenever(repository.getProfile()).thenReturn(AgentProfilePreset.A.profile)
+        whenever(repository.updateProfile(any())).thenReturn(AgentProfilePreset.A.profile)
+        val viewModel = createViewModel()
+        viewModel.openProfileEditor()
+
+        viewModel.onProfileEdited(AgentProfilePreset.A.profile.copy(japaneseLevel = "N1"))
+        viewModel.dismissProfileEditor()
+
+        verify(repository, never()).updateProfile(any())
+        assertNull(viewModel.state.value.profileEditor)
+    }
+
+    @Test
+    fun `confirming the dialog saves what was edited`() = runTest {
+        given()
+        whenever(repository.getProfile()).thenReturn(AgentProfilePreset.A.profile)
+        val edited = AgentProfilePreset.A.profile.copy(japaneseLevel = "N1", answerFormat = "detailed")
+        whenever(repository.updateProfile(any())).thenReturn(edited)
+        val viewModel = createViewModel()
+        viewModel.openProfileEditor()
+        viewModel.onProfileEdited(edited)
+
+        viewModel.confirmProfileEdit()
+
+        verify(repository, times(1)).updateProfile(edited)
+        assertEquals("N1", viewModel.state.value.profile?.japaneseLevel)
+        assertNull(viewModel.state.value.profileEditor)
+    }
+
+    @Test
+    fun `a failed profile save surfaces as an error and keeps the old profile`() = runTest {
+        given()
+        whenever(repository.getProfile()).thenReturn(AgentProfilePreset.A.profile)
+        whenever(repository.updateProfile(any())).thenThrow(RuntimeException("network down"))
+        val viewModel = createViewModel()
+
+        viewModel.applyPreset(AgentProfilePreset.B)
+
+        assertFalse(viewModel.state.value.isProfileWorking)
+        assertEquals("network down", viewModel.state.value.profileError)
+        assertEquals(AgentProfilePreset.A.profile, viewModel.state.value.profile)
+    }
+
+    @Test
+    fun `the two demo profiles differ in all four settings`() = runTest {
+        val a = AgentProfilePreset.A.profile
+        val b = AgentProfilePreset.B.profile
+
+        assertEquals(AgentUserProfile("N4", "simple", "short", "Russian"), a)
+        assertEquals(AgentUserProfile("N2", "detailed", "detailed", "English"), b)
+        assertEquals(AgentProfilePreset.A, AgentProfilePreset.matching(a))
+        assertEquals(AgentProfilePreset.B, AgentProfilePreset.matching(b))
+        assertNull(AgentProfilePreset.matching(AgentUserProfile()))
     }
 }
