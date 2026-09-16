@@ -13,6 +13,7 @@ import com.japanesehelper.data.remote.dto.AgentUserProfileDto
 import com.japanesehelper.data.remote.dto.AgentUserProfileRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyResponseDto
+import com.japanesehelper.data.remote.dto.AgentTaskStateDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -72,4 +73,10 @@ interface AgentApi {
     suspend fun updateProfile(
         @Body request: AgentUserProfileRequestDto
     ): AgentUserProfileDto
+
+    @GET("agent/task")
+    suspend fun getTaskState(): AgentTaskStateDto
+
+    @DELETE("agent/task")
+    suspend fun clearTaskState(): AgentTaskStateDto
 }

@@ -30,6 +30,7 @@ import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextS
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.CreateBranchDialog
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.EditProfileDialog
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.MemoryLayersSection
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.TaskStateSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TokenUsageSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.UserProfileSection
 import com.japanesehelper.presentation.screens.homeScreen.components.ErrorWithRetry
@@ -59,6 +60,11 @@ private const val MAX_INPUT_LINES = 4
  * backend applies it to every request whatever the strategy, so the learner
  * never repeats their level or format in a message. Switching between the two
  * profiles and asking the same question again is the whole comparison.
+ *
+ * The Task State block below it shows where the work has got to - planning,
+ * execution, validation, done. The stages and the moves between them are the
+ * backend's state machine; the screen reads it and can end the task, and holds
+ * no idea of its own about which stage follows which.
  */
 @Composable
 fun AiAgentScreen(
@@ -156,6 +162,12 @@ fun AiAgentScreen(
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
+
+                        TaskStateSection(
+                            taskState = state.taskState,
+                            isWorking = state.isTaskWorking,
+                            onClear = viewModel::clearTaskState
+                        )
 
                         val lastUsage = state.lastUsage
                         if (lastUsage != null) {

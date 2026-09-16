@@ -101,6 +101,12 @@
     <string name="ai_agent_profile_format">Answer format</string>
     <string name="ai_agent_profile_translation">Translation language</string>
     <string name="ai_agent_profile_save">Save</string>
+    <string name="ai_agent_task_title">Task state</string>
+    <string name="ai_agent_task_idle">No task in progress</string>
+    <string name="ai_agent_task_stage">Stage</string>
+    <string name="ai_agent_task_step">Current step</string>
+    <string name="ai_agent_task_action">Expected action</string>
+    <string name="ai_agent_task_clear_button">End task</string>
     <plurals name="ai_agent_memory_messages">
         <item quantity="one">%1$d message in this conversation</item>
         <item quantity="other">%1$d messages in this conversation</item>

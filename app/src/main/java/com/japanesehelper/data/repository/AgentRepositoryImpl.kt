@@ -13,6 +13,7 @@ import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentReply
+import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.repository.AgentRepository
 import kotlinx.coroutines.Dispatchers
@@ -77,4 +78,12 @@ class AgentRepositoryImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             agentApi.updateProfile(profile.toRequestDto()).toDomain()
         }
+
+    override suspend fun getTaskState(): AgentTaskState = withContext(Dispatchers.IO) {
+        agentApi.getTaskState().toDomain()
+    }
+
+    override suspend fun clearTaskState(): AgentTaskState = withContext(Dispatchers.IO) {
+        agentApi.clearTaskState().toDomain()
+    }
 }

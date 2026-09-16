@@ -6,6 +6,7 @@ import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentReply
+import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentUserProfile
 
 interface AgentRepository {
@@ -21,4 +22,6 @@ interface AgentRepository {
     suspend fun clearMemoryLayer(layer: AgentMemoryLayer): AgentMemory
     suspend fun getProfile(): AgentUserProfile
     suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile
+    suspend fun getTaskState(): AgentTaskState
+    suspend fun clearTaskState(): AgentTaskState
 }

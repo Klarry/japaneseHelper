@@ -7,6 +7,7 @@ import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentLongTermMemoryDto
 import com.japanesehelper.data.remote.dto.AgentMemoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentShortTermMemoryDto
+import com.japanesehelper.data.remote.dto.AgentTaskStateDto
 import com.japanesehelper.data.remote.dto.AgentUserProfileDto
 import com.japanesehelper.data.remote.dto.AgentUserProfileRequestDto
 import com.japanesehelper.data.remote.dto.AgentWorkingMemoryDto
@@ -18,6 +19,7 @@ import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
+import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentTokenUsage
 import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.model.AgentWorkingMemory
@@ -88,4 +90,11 @@ fun AgentUserProfile.toRequestDto(): AgentUserProfileRequestDto = AgentUserProfi
     explanationStyle = explanationStyle,
     answerFormat = answerFormat,
     translationLanguage = translationLanguage
+)
+
+fun AgentTaskStateDto.toDomain(): AgentTaskState = AgentTaskState(
+    stage = taskStage,
+    currentStep = currentStep,
+    expectedAction = expectedAction,
+    allowedNext = allowedNext
 )

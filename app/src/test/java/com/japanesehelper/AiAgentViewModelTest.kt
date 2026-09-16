@@ -10,6 +10,7 @@ import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentProfilePreset
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
+import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentTokenUsage
 import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.model.AgentWorkingMemory
@@ -72,6 +73,13 @@ class AiAgentViewModelTest {
         whenever(repository.getContext()).thenReturn(context)
     }
 
+    private fun task(
+        stage: String = "execution",
+        currentStep: String = "шаг 2 из 4",
+        expectedAction: String = "показать предложения",
+        allowedNext: List<String> = listOf("validation")
+    ) = AgentTaskState(stage, currentStep, expectedAction, allowedNext)
+
     private fun memory(
         messages: List<AgentMessage> = emptyList(),
         goals: List<String> = emptyList(),
@@ -101,6 +109,8 @@ class AiAgentViewModelTest {
         override suspend fun clearMemoryLayer(layer: AgentMemoryLayer): AgentMemory = AgentMemory()
         override suspend fun getProfile(): AgentUserProfile = AgentUserProfile()
         override suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile = profile
+        override suspend fun getTaskState(): AgentTaskState = AgentTaskState()
+        override suspend fun clearTaskState(): AgentTaskState = AgentTaskState()
     }
 
     // --- opening the screen -------------------------------------------------
@@ -671,5 +681,84 @@ class AiAgentViewModelTest {
         assertEquals(AgentProfilePreset.A, AgentProfilePreset.matching(a))
         assertEquals(AgentProfilePreset.B, AgentProfilePreset.matching(b))
         assertNull(AgentProfilePreset.matching(AgentUserProfile()))
+    }
+
+    // --- task state ---------------------------------------------------------
+
+    @Test
+    fun `the task state is loaded when the screen opens`() = runTest {
+        given()
+        whenever(repository.getTaskState()).thenReturn(task())
+
+        val viewModel = createViewModel()
+
+        verify(repository, times(1)).getTaskState()
+        assertEquals("execution", viewModel.state.value.taskState?.stage)
+        assertEquals("шаг 2 из 4", viewModel.state.value.taskState?.currentStep)
+    }
+
+    @Test
+    fun `the stage is re-read after every message, since any of them can move it`() = runTest {
+        given()
+        whenever(repository.getTaskState())
+            .thenReturn(task(stage = "planning", currentStep = "составляем план"))
+            .thenReturn(task(stage = "execution", currentStep = "шаг 1 из 4"))
+        whenever(repository.chat(any(), any())).thenReturn(reply("ответ"))
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("приступаем")
+
+        viewModel.send()
+
+        verify(repository, times(2)).getTaskState()
+        assertEquals("execution", viewModel.state.value.taskState?.stage)
+    }
+
+    @Test
+    fun `ending the task shows what the backend left`() = runTest {
+        given()
+        whenever(repository.getTaskState()).thenReturn(task())
+        whenever(repository.clearTaskState()).thenReturn(
+            AgentTaskState(stage = "idle", allowedNext = listOf("planning"))
+        )
+        val viewModel = createViewModel()
+
+        viewModel.clearTaskState()
+
+        verify(repository, times(1)).clearTaskState()
+        assertFalse(viewModel.state.value.taskState!!.isActive)
+        assertFalse(viewModel.state.value.isTaskWorking)
+    }
+
+    @Test
+    fun `ending the task does not touch the conversation`() = runTest {
+        given(history = listOf(message("Давай составим план")))
+        whenever(repository.getTaskState()).thenReturn(task())
+        whenever(repository.clearTaskState()).thenReturn(AgentTaskState())
+        val viewModel = createViewModel()
+
+        viewModel.clearTaskState()
+
+        verify(repository, never()).clearHistory()
+        val history = viewModel.state.value.history
+        assertEquals(1, (history as AgentHistoryUiState.Loaded).messages.size)
+    }
+
+    @Test
+    fun `a failed read of the task state surfaces as an error`() = runTest {
+        given()
+        whenever(repository.getTaskState()).thenThrow(RuntimeException("network down"))
+
+        val viewModel = createViewModel()
+
+        assertEquals("network down", viewModel.state.value.contextError)
+        assertNull(viewModel.state.value.taskState)
+    }
+
+    @Test
+    fun `an idle task is not an active one`() = runTest {
+        assertFalse(AgentTaskState().isActive)
+        assertFalse(AgentTaskState(stage = "idle").isActive)
+        assertTrue(AgentTaskState(stage = "planning").isActive)
+        assertTrue(task().isActive)
     }
 }

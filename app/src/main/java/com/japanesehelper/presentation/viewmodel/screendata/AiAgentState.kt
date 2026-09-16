@@ -4,6 +4,7 @@ import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentContextStrategy
 import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMessage
+import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentTokenUsage
 import com.japanesehelper.domain.model.AgentUserProfile
 
@@ -52,6 +53,10 @@ data class AiAgentScreenState(
     val isProfileWorking: Boolean = false,
     val profileError: String? = null,
     val profileEditor: ProfileEditorState? = null,
+    /** Where the task in progress has got to. The stages and the moves
+     * between them belong to the backend; this is what it reports. */
+    val taskState: AgentTaskState? = null,
+    val isTaskWorking: Boolean = false,
     /** Token usage for the last successful send this session - not part of
      * persisted history, so it starts empty on every screen open. */
     val lastUsage: AgentTokenUsage? = null

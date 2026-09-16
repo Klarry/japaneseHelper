@@ -43,6 +43,7 @@ class AiAgentViewModel @Inject constructor(
         loadHistory()
         loadContext(alignStrategy = true)
         loadProfile()
+        loadTaskState()
     }
 
     fun loadHistory() {
@@ -223,6 +224,37 @@ class AiAgentViewModel @Inject constructor(
         }
     }
 
+    // --- task state --------------------------------------------------------
+
+    fun loadTaskState() {
+        viewModelScope.launch { refreshTaskState() }
+    }
+
+    /** End the task. The backend leaves the conversation, the memory layers
+     * and the profile alone, so its answer is the whole new state. */
+    fun clearTaskState() {
+        if (_state.value.isTaskWorking) return
+
+        _state.value = _state.value.copy(isTaskWorking = true, contextError = null)
+
+        viewModelScope.launch {
+            try {
+                val cleared = agentRepository.clearTaskState()
+                _state.value = _state.value.copy(isTaskWorking = false, taskState = cleared)
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                _state.value = _state.value.copy(isTaskWorking = false, contextError = e.toErrorMessage())
+            }
+        }
+    }
+
+    private suspend fun refreshTaskState() {
+        try {
+            _state.value = _state.value.copy(taskState = agentRepository.getTaskState(), contextError = null)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            _state.value = _state.value.copy(contextError = e.toErrorMessage())
+        }
+    }
+
     // --- user profile ------------------------------------------------------
 
     fun loadProfile() {
@@ -356,6 +388,9 @@ class AiAgentViewModel @Inject constructor(
     private suspend fun refreshContext() {
         refreshContextOnly()
         refreshMemory()
+        // Any message can move the task on, so the stage is re-read wherever
+        // the rest of the readouts are.
+        refreshTaskState()
     }
 
     private suspend fun refreshContextOnly() {
