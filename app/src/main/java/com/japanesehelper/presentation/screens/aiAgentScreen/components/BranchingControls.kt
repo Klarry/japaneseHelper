@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
@@ -34,9 +33,7 @@ fun BranchingControls(
     val padding = LocalAppPadding.current
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = padding.default),
+        modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(padding.quarter)
     ) {
         ReadoutCaption(stringResource(R.string.ai_agent_branch_title))

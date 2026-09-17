@@ -32,9 +32,10 @@ import com.japanesehelper.presentation.viewmodel.screendata.AgentHistoryUiState
 private const val USER_BUBBLE_MAX_WIDTH_FRACTION = 0.85f
 
 /**
- * The conversation itself: one scrolling list of messages that fills whatever
+ * The conversation itself: one scrolling list of messages that fills the
  * height the screen gives it, so the newest turn stays in view and the input
- * below never scrolls away.
+ * below never scrolls away. That height no longer depends on how much the
+ * readouts underneath have to say - they have a pane of their own.
  *
  * Everything shown here comes from GET /agent/history or from appending the
  * last chat() result - Gemini is never called just to display history.
@@ -85,9 +86,14 @@ private fun CenteredArea(modifier: Modifier = Modifier, content: @Composable () 
 private fun MessageList(messages: List<AgentMessage>, modifier: Modifier = Modifier) {
     val listState = rememberLazyListState()
 
-    // Follow the conversation: a new turn scrolls itself into view, so the
-    // answer is on screen without the reader chasing it.
-    LaunchedEffect(messages.size) {
+    // Follow the conversation the way a chat app does: a new turn brings its
+    // own first line to the top of the view, so a long answer is read from
+    // its beginning rather than from wherever the previous one ended.
+    //
+    // Keyed on the last message too, not only on how many there are: a
+    // branch switch or a cleared short-term memory replaces the list without
+    // necessarily changing its length.
+    LaunchedEffect(messages.size, messages.lastOrNull()?.content) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.lastIndex)
         }

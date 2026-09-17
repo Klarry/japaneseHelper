@@ -3,10 +3,15 @@ package com.japanesehelper.presentation.screens.aiAgentScreen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -17,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.japanesehelper.R
@@ -45,6 +51,10 @@ import com.japanesehelper.presentation.viewmodel.screendata.AgentHistoryUiState
  * the conversation above it. */
 private const val MAX_INPUT_LINES = 4
 
+/** The slice of the screen the readouts get. Fixed rather than however tall
+ * they happen to be, so the conversation above never resizes. */
+private val READOUTS_HEIGHT = 156.dp
+
 /**
  * A persistent chat with the backend's JapaneseLearningAgent, laid out as one
  * chat window: the conversation owns the height of the screen and scrolls on
@@ -72,6 +82,11 @@ private const val MAX_INPUT_LINES = 4
  * the dialog behind Edit changes them. Whether a request breaks one is decided
  * on the backend and answered in the chat like any other reply - nothing here
  * inspects a message.
+ *
+ * All of those blocks live in one pane of a fixed height that scrolls inside
+ * itself, so the conversation is exactly as tall on the last turn as on the
+ * first: a strategy with more to report, or another invariant, no longer takes
+ * the screen away from the chat.
  */
 @Composable
 fun AiAgentScreen(
@@ -102,34 +117,20 @@ fun AiAgentScreen(
                 onSelected = viewModel::onStrategySelected
             )
 
-            if (state.strategy == AgentContextStrategy.BRANCHING) {
-                BranchingControls(
-                    context = state.context,
-                    isWorking = state.isBranchWorking,
-                    onSwitchBranch = viewModel::switchBranch,
-                    onCreateCheckpoint = viewModel::createCheckpoint,
-                    onCreateBranch = viewModel::openNewBranch,
-                    modifier = Modifier.padding(top = padding.half)
-                )
-            }
-
             AgentConversation(
                 historyState = state.history,
                 onRetryLoad = viewModel::loadHistory,
                 modifier = Modifier.weight(1f)
             )
 
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(padding.default),
+                    .padding(horizontal = padding.default, vertical = padding.half),
                 verticalArrangement = Arrangement.spacedBy(padding.half)
             ) {
-                val sendError = state.sendError
-                if (sendError != null) {
-                    ErrorWithRetry(message = sendError, onRetry = viewModel::send)
-                }
-
                 OutlinedTextField(
                     value = state.message,
                     onValueChange = viewModel::onMessageChanged,
@@ -144,89 +145,104 @@ fun AiAgentScreen(
                     isLoading = state.isSending,
                     onAsk = viewModel::send
                 )
+            }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(padding.default),
-                    verticalAlignment = Alignment.CenterVertically
+            // The readouts get a fixed slice of the screen and scroll inside
+            // it. They are why the conversation used to shrink: a strategy
+            // with more to report, or a few more invariants, took the room
+            // from the chat. Now nothing below the conversation changes size,
+            // so the chat stays exactly as tall as it was when the screen
+            // opened.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(READOUTS_HEIGHT)
+                    .padding(horizontal = padding.default, vertical = padding.half),
+                horizontalArrangement = Arrangement.spacedBy(padding.default),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(padding.quarter)
                 ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(padding.quarter)
-                    ) {
-                        UserProfileSection(
-                            profile = state.profile,
-                            isWorking = state.isProfileWorking,
-                            onPresetSelected = viewModel::applyPreset,
-                            onEdit = viewModel::openProfileEditor
-                        )
-
-                        val profileError = state.profileError
-                        if (profileError != null) {
-                            Text(
-                                text = profileError,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-
-                        TaskStateSection(
-                            taskState = state.taskState,
-                            isWorking = state.isTaskWorking,
-                            onClear = viewModel::clearTaskState
-                        )
-
-                        InvariantsSection(
-                            invariants = state.invariants,
-                            isWorking = state.isInvariantsWorking,
-                            onEdit = viewModel::openInvariantEditor
-                        )
-
-                        val invariantsError = state.invariantsError
-                        if (invariantsError != null) {
-                            Text(
-                                text = invariantsError,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-
-                        val lastUsage = state.lastUsage
-                        if (lastUsage != null) {
-                            TokenUsageSection(usage = lastUsage)
-                        }
-
-                        ContextSection(strategy = state.strategy, context = state.context)
-
-                        if (state.strategy == AgentContextStrategy.LAYERED_MEMORY) {
-                            MemoryLayersSection(
-                                memory = state.memory,
-                                isWorking = state.isMemoryWorking,
-                                onClearLayer = viewModel::clearMemoryLayer
-                            )
-                        }
-
-                        val contextError = state.contextError
-                        if (contextError != null) {
-                            Text(
-                                text = contextError,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
+                    val sendError = state.sendError
+                    if (sendError != null) {
+                        ErrorWithRetry(message = sendError, onRetry = viewModel::send)
                     }
 
-                    ClearHistoryButton(
-                        enabled = !loadedMessages.isNullOrEmpty(),
-                        isLoading = state.isClearingHistory,
-                        onClear = viewModel::clearHistory
+                    if (state.strategy == AgentContextStrategy.BRANCHING) {
+                        BranchingControls(
+                            context = state.context,
+                            isWorking = state.isBranchWorking,
+                            onSwitchBranch = viewModel::switchBranch,
+                            onCreateCheckpoint = viewModel::createCheckpoint,
+                            onCreateBranch = viewModel::openNewBranch
+                        )
+                    }
+
+                    UserProfileSection(
+                        profile = state.profile,
+                        isWorking = state.isProfileWorking,
+                        onPresetSelected = viewModel::applyPreset,
+                        onEdit = viewModel::openProfileEditor
                     )
+
+                    val profileError = state.profileError
+                    if (profileError != null) {
+                        ReadoutError(profileError)
+                    }
+
+                    TaskStateSection(
+                        taskState = state.taskState,
+                        isWorking = state.isTaskWorking,
+                        onClear = viewModel::clearTaskState
+                    )
+
+                    InvariantsSection(
+                        invariants = state.invariants,
+                        isWorking = state.isInvariantsWorking,
+                        onEdit = viewModel::openInvariantEditor
+                    )
+
+                    val invariantsError = state.invariantsError
+                    if (invariantsError != null) {
+                        ReadoutError(invariantsError)
+                    }
+
+                    val lastUsage = state.lastUsage
+                    if (lastUsage != null) {
+                        TokenUsageSection(usage = lastUsage)
+                    }
+
+                    ContextSection(strategy = state.strategy, context = state.context)
+
+                    if (state.strategy == AgentContextStrategy.LAYERED_MEMORY) {
+                        MemoryLayersSection(
+                            memory = state.memory,
+                            isWorking = state.isMemoryWorking,
+                            onClearLayer = viewModel::clearMemoryLayer
+                        )
+                    }
+
+                    val contextError = state.contextError
+                    if (contextError != null) {
+                        ReadoutError(contextError)
+                    }
+
+                    val clearError = state.clearHistoryError
+                    if (clearError != null) {
+                        ErrorWithRetry(message = clearError, onRetry = viewModel::clearHistory)
+                    }
                 }
 
-                val clearError = state.clearHistoryError
-                if (clearError != null) {
-                    ErrorWithRetry(message = clearError, onRetry = viewModel::clearHistory)
-                }
+                ClearHistoryButton(
+                    enabled = !loadedMessages.isNullOrEmpty(),
+                    isLoading = state.isClearingHistory,
+                    onClear = viewModel::clearHistory
+                )
             }
         }
 
@@ -267,4 +283,14 @@ fun AiAgentScreen(
             )
         }
     }
+}
+
+/** One line of red under a readout - the same shape for every block. */
+@Composable
+private fun ReadoutError(message: String) {
+    Text(
+        text = message,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.error
+    )
 }
