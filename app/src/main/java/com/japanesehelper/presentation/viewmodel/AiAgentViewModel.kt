@@ -489,6 +489,11 @@ class AiAgentViewModel @Inject constructor(
         // Any message can move the task on, so the stage is re-read wherever
         // the rest of the readouts are.
         refreshTaskState()
+        // The rules change far less often, but reading them only once, when
+        // the screen opened, meant a single failed read (the backend not up
+        // yet, say) left the block empty until the screen was reopened. Now
+        // any action gets them back.
+        refreshInvariants()
     }
 
     private suspend fun refreshContextOnly() {

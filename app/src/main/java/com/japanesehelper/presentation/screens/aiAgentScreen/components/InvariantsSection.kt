@@ -45,8 +45,15 @@ fun InvariantsSection(
             }
         }
 
-        val lines = invariants.orEmpty().map { it.rule }
-            .ifEmpty { listOf(stringResource(R.string.ai_agent_invariants_empty)) }
+        // "Not read yet" and "there really are none" look the same on screen
+        // unless they are told apart, and the difference matters: one means
+        // the backend was not reachable, the other that every rule was
+        // deleted.
+        val lines = when {
+            invariants == null -> listOf(stringResource(R.string.ai_agent_invariants_unavailable))
+            invariants.isEmpty() -> listOf(stringResource(R.string.ai_agent_invariants_empty))
+            else -> invariants.map { it.rule }
+        }
 
         lines.forEach { line ->
             Text(

@@ -889,4 +889,35 @@ class AiAgentViewModelTest {
         val history = viewModel.state.value.history as AgentHistoryUiState.Loaded
         assertTrue(history.messages.last().content.contains("правило"))
     }
+
+    /** Reading them once, when the screen opened, meant one failed read left
+     * the block empty until the screen was reopened. */
+    @Test
+    fun `the rules are read again after an action, not only when the screen opens`() = runTest {
+        given()
+        whenever(repository.getInvariants())
+            .thenThrow(RuntimeException("connection refused"))
+            .thenReturn(listOf(invariant()))
+        whenever(repository.clearHistory()).thenReturn(Unit)
+        val viewModel = createViewModel()
+        assertNull(viewModel.state.value.invariants)
+
+        viewModel.clearHistory()
+
+        verify(repository, times(2)).getInvariants()
+        assertEquals("Storage: JSON files", viewModel.state.value.invariants?.single()?.rule)
+    }
+
+    @Test
+    fun `clearing the conversation does not clear the rules`() = runTest {
+        given()
+        whenever(repository.getInvariants()).thenReturn(listOf(invariant()))
+        whenever(repository.clearHistory()).thenReturn(Unit)
+        val viewModel = createViewModel()
+
+        viewModel.clearHistory()
+
+        verify(repository, never()).deleteInvariant(any())
+        assertEquals(1, viewModel.state.value.invariants?.size)
+    }
 }

@@ -109,6 +109,7 @@
     <string name="ai_agent_task_clear_button">End task</string>
     <string name="ai_agent_invariants_title">Invariants</string>
     <string name="ai_agent_invariants_empty">No rules set</string>
+    <string name="ai_agent_invariants_unavailable">Not loaded</string>
     <string name="ai_agent_invariants_edit_button">Edit</string>
     <string name="ai_agent_invariants_rule_placeholder">New rule</string>
     <string name="ai_agent_invariants_add">Add</string>
