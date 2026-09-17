@@ -41,24 +41,33 @@ class AiAgentViewModel @Inject constructor(
     private val _state = MutableStateFlow(AiAgentScreenState())
     val state: StateFlow<AiAgentScreenState> = _state
 
+    // Opening the screen used to fire five requests at once. On a slow or
+    // busy backend they competed with each other and whichever lost came
+    // back empty, which is what made the screen load "every other time".
+    // One coroutine, in order of what the reader needs first: the
+    // conversation, then the readouts.
     init {
-        loadHistory()
-        loadContext(alignStrategy = true)
-        loadProfile()
-        loadTaskState()
-        loadInvariants()
+        viewModelScope.launch {
+            loadHistoryNow()
+            alignStrategyAndLoadContext()
+            refreshProfile()
+            refreshTaskState()
+            refreshInvariants()
+        }
     }
 
     fun loadHistory() {
+        viewModelScope.launch { loadHistoryNow() }
+    }
+
+    private suspend fun loadHistoryNow() {
         _state.value = _state.value.copy(history = AgentHistoryUiState.Loading)
 
-        viewModelScope.launch {
-            try {
-                val messages = agentRepository.getHistory()
-                _state.value = _state.value.copy(history = AgentHistoryUiState.Loaded(messages))
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                _state.value = _state.value.copy(history = AgentHistoryUiState.Error(e.toErrorMessage()))
-            }
+        try {
+            val messages = agentRepository.getHistory()
+            _state.value = _state.value.copy(history = AgentHistoryUiState.Loaded(messages))
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            _state.value = _state.value.copy(history = AgentHistoryUiState.Error(e.toErrorMessage()))
         }
     }
 
@@ -449,38 +458,37 @@ class AiAgentViewModel @Inject constructor(
 
     private fun loadContext(alignStrategy: Boolean) {
         viewModelScope.launch {
-            if (!alignStrategy) {
-                refreshContext()
-                return@launch
-            }
-
-            val context = try {
-                agentRepository.getContext()
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                _state.value = _state.value.copy(contextError = e.toErrorMessage())
-                return@launch
-            }
-
-            val known = AgentContextStrategy.fromWireName(context.strategy)
-
-            if (known != null) {
-                _state.value = _state.value.copy(context = context, strategy = known, contextError = null)
-                refreshMemory()
-                return@launch
-            }
-
-            // The backend is on a strategy this screen does not offer. Put it
-            // on the one shown here, so what is displayed and what would be
-            // sent cannot disagree.
-            try {
-                agentRepository.setStrategy(_state.value.strategy)
-            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
-                _state.value = _state.value.copy(context = context, contextError = e.toErrorMessage())
-                return@launch
-            }
-
-            refreshContext()
+            if (alignStrategy) alignStrategyAndLoadContext() else refreshContext()
         }
+    }
+
+    private suspend fun alignStrategyAndLoadContext() {
+        val context = try {
+            agentRepository.getContext()
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            _state.value = _state.value.copy(contextError = e.toErrorMessage())
+            return
+        }
+
+        val known = AgentContextStrategy.fromWireName(context.strategy)
+
+        if (known != null) {
+            _state.value = _state.value.copy(context = context, strategy = known, contextError = null)
+            refreshMemory()
+            return
+        }
+
+        // The backend is on a strategy this screen does not offer. Put it
+        // on the one shown here, so what is displayed and what would be
+        // sent cannot disagree.
+        try {
+            agentRepository.setStrategy(_state.value.strategy)
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            _state.value = _state.value.copy(context = context, contextError = e.toErrorMessage())
+            return
+        }
+
+        refreshContext()
     }
 
     private suspend fun refreshContext() {
@@ -489,11 +497,14 @@ class AiAgentViewModel @Inject constructor(
         // Any message can move the task on, so the stage is re-read wherever
         // the rest of the readouts are.
         refreshTaskState()
-        // The rules change far less often, but reading them only once, when
-        // the screen opened, meant a single failed read (the backend not up
-        // yet, say) left the block empty until the screen was reopened. Now
-        // any action gets them back.
-        refreshInvariants()
+        // The rules change only when someone edits them, so they are not
+        // re-read on every turn - that would be a fourth request after each
+        // message for something that did not move. They are re-read when
+        // they are missing, which is what gets them back after a read that
+        // failed while the backend was still starting.
+        if (_state.value.invariants == null) {
+            refreshInvariants()
+        }
     }
 
     private suspend fun refreshContextOnly() {
