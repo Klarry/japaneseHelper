@@ -107,6 +107,13 @@
     <string name="ai_agent_task_step">Current step</string>
     <string name="ai_agent_task_action">Expected action</string>
     <string name="ai_agent_task_clear_button">End task</string>
+    <string name="ai_agent_invariants_title">Invariants</string>
+    <string name="ai_agent_invariants_empty">No rules set</string>
+    <string name="ai_agent_invariants_edit_button">Edit</string>
+    <string name="ai_agent_invariants_rule_placeholder">New rule</string>
+    <string name="ai_agent_invariants_add">Add</string>
+    <string name="ai_agent_invariants_save">Save</string>
+    <string name="ai_agent_invariants_remove">x</string>
     <plurals name="ai_agent_memory_messages">
         <item quantity="one">%1$d message in this conversation</item>
         <item quantity="other">%1$d messages in this conversation</item>

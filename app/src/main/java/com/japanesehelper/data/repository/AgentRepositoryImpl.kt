@@ -6,9 +6,12 @@ import com.japanesehelper.data.remote.api.AgentApi
 import com.japanesehelper.data.remote.dto.AgentBranchRequestDto
 import com.japanesehelper.data.remote.dto.AgentBranchSwitchRequestDto
 import com.japanesehelper.data.remote.dto.AgentChatRequestDto
+import com.japanesehelper.data.remote.dto.AgentInvariantRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyRequestDto
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentContextStrategy
+import com.japanesehelper.domain.model.AgentInvariant
+import com.japanesehelper.domain.model.AgentInvariantCategory
 import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
@@ -85,5 +88,24 @@ class AgentRepositoryImpl @Inject constructor(
 
     override suspend fun clearTaskState(): AgentTaskState = withContext(Dispatchers.IO) {
         agentApi.clearTaskState().toDomain()
+    }
+
+    override suspend fun getInvariants(): List<AgentInvariant> = withContext(Dispatchers.IO) {
+        agentApi.getInvariants().toDomain()
+    }
+
+    /** No id means a new rule, which the backend names itself. */
+    override suspend fun saveInvariant(
+        id: String?,
+        category: AgentInvariantCategory,
+        rule: String
+    ): List<AgentInvariant> = withContext(Dispatchers.IO) {
+        val request = AgentInvariantRequestDto(category = category.wireName, rule = rule)
+        val response = if (id == null) agentApi.addInvariant(request) else agentApi.setInvariant(id, request)
+        response.toDomain()
+    }
+
+    override suspend fun deleteInvariant(id: String): List<AgentInvariant> = withContext(Dispatchers.IO) {
+        agentApi.deleteInvariant(id).toDomain()
     }
 }

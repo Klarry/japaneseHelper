@@ -4,6 +4,8 @@ import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentHistoryMessageDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
+import com.japanesehelper.data.remote.dto.AgentInvariantDto
+import com.japanesehelper.data.remote.dto.AgentInvariantsResponseDto
 import com.japanesehelper.data.remote.dto.AgentLongTermMemoryDto
 import com.japanesehelper.data.remote.dto.AgentMemoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentShortTermMemoryDto
@@ -13,6 +15,8 @@ import com.japanesehelper.data.remote.dto.AgentUserProfileRequestDto
 import com.japanesehelper.data.remote.dto.AgentWorkingMemoryDto
 import com.japanesehelper.data.remote.dto.AgentUsageDto
 import com.japanesehelper.domain.model.AgentContext
+import com.japanesehelper.domain.model.AgentInvariant
+import com.japanesehelper.domain.model.AgentInvariantCategory
 import com.japanesehelper.domain.model.AgentLongTermMemory
 import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMessage
@@ -98,3 +102,12 @@ fun AgentTaskStateDto.toDomain(): AgentTaskState = AgentTaskState(
     expectedAction = expectedAction,
     allowedNext = allowedNext
 )
+
+/** A rule whose category this build does not know about is dropped rather
+ * than shown under a made-up heading - the backend owns that list. */
+fun AgentInvariantDto.toDomain(): AgentInvariant? =
+    AgentInvariantCategory.fromWireName(category)?.let {
+        AgentInvariant(id = id, category = it, rule = rule)
+    }
+
+fun AgentInvariantsResponseDto.toDomain(): List<AgentInvariant> = invariants.mapNotNull { it.toDomain() }

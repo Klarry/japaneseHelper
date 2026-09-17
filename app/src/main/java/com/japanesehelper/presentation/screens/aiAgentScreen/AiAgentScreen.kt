@@ -28,7 +28,9 @@ import com.japanesehelper.presentation.screens.aiAgentScreen.components.ClearHis
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextStrategyTabRow
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.CreateBranchDialog
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.EditInvariantsDialog
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.EditProfileDialog
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.InvariantsSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.MemoryLayersSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TaskStateSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TokenUsageSection
@@ -65,6 +67,11 @@ private const val MAX_INPUT_LINES = 4
  * execution, validation, done. The stages and the moves between them are the
  * backend's state machine; the screen reads it and can end the task, and holds
  * no idea of its own about which stage follows which.
+ *
+ * The Invariants block under that lists the rules the agent may not break, and
+ * the dialog behind Edit changes them. Whether a request breaks one is decided
+ * on the backend and answered in the chat like any other reply - nothing here
+ * inspects a message.
  */
 @Composable
 fun AiAgentScreen(
@@ -169,6 +176,21 @@ fun AiAgentScreen(
                             onClear = viewModel::clearTaskState
                         )
 
+                        InvariantsSection(
+                            invariants = state.invariants,
+                            isWorking = state.isInvariantsWorking,
+                            onEdit = viewModel::openInvariantEditor
+                        )
+
+                        val invariantsError = state.invariantsError
+                        if (invariantsError != null) {
+                            Text(
+                                text = invariantsError,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+
                         val lastUsage = state.lastUsage
                         if (lastUsage != null) {
                             TokenUsageSection(usage = lastUsage)
@@ -206,6 +228,21 @@ fun AiAgentScreen(
                     ErrorWithRetry(message = clearError, onRetry = viewModel::clearHistory)
                 }
             }
+        }
+
+        val invariantEditor = state.invariantEditor
+        if (invariantEditor != null) {
+            EditInvariantsDialog(
+                invariants = state.invariants.orEmpty(),
+                editor = invariantEditor,
+                isWorking = state.isInvariantsWorking,
+                onSelect = viewModel::onInvariantSelected,
+                onDelete = viewModel::deleteInvariant,
+                onRuleChanged = viewModel::onInvariantRuleChanged,
+                onCategorySelected = viewModel::onInvariantCategorySelected,
+                onSave = viewModel::saveInvariant,
+                onDismiss = viewModel::dismissInvariantEditor
+            )
         }
 
         val profileEditor = state.profileEditor

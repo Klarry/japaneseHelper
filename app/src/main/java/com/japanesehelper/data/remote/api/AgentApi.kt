@@ -8,6 +8,8 @@ import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentCheckpointResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
+import com.japanesehelper.data.remote.dto.AgentInvariantRequestDto
+import com.japanesehelper.data.remote.dto.AgentInvariantsResponseDto
 import com.japanesehelper.data.remote.dto.AgentMemoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentUserProfileDto
 import com.japanesehelper.data.remote.dto.AgentUserProfileRequestDto
@@ -79,4 +81,23 @@ interface AgentApi {
 
     @DELETE("agent/task")
     suspend fun clearTaskState(): AgentTaskStateDto
+
+    @GET("agent/invariants")
+    suspend fun getInvariants(): AgentInvariantsResponseDto
+
+    @POST("agent/invariants")
+    suspend fun addInvariant(
+        @Body request: AgentInvariantRequestDto
+    ): AgentInvariantsResponseDto
+
+    @PUT("agent/invariants/{id}")
+    suspend fun setInvariant(
+        @Path("id") id: String,
+        @Body request: AgentInvariantRequestDto
+    ): AgentInvariantsResponseDto
+
+    @DELETE("agent/invariants/{id}")
+    suspend fun deleteInvariant(
+        @Path("id") id: String
+    ): AgentInvariantsResponseDto
 }

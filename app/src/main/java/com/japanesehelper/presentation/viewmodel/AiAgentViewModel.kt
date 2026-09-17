@@ -3,6 +3,7 @@ package com.japanesehelper.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.japanesehelper.domain.model.AgentContextStrategy
+import com.japanesehelper.domain.model.AgentInvariantCategory
 import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
@@ -11,6 +12,7 @@ import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.repository.AgentRepository
 import com.japanesehelper.presentation.viewmodel.screendata.AgentHistoryUiState
 import com.japanesehelper.presentation.viewmodel.screendata.AiAgentScreenState
+import com.japanesehelper.presentation.viewmodel.screendata.InvariantEditorState
 import com.japanesehelper.presentation.viewmodel.screendata.NewBranchState
 import com.japanesehelper.presentation.viewmodel.screendata.ProfileEditorState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,6 +46,7 @@ class AiAgentViewModel @Inject constructor(
         loadContext(alignStrategy = true)
         loadProfile()
         loadTaskState()
+        loadInvariants()
     }
 
     fun loadHistory() {
@@ -221,6 +224,101 @@ class AiAgentViewModel @Inject constructor(
             loadHistory()
             refreshContext()
             _state.value = _state.value.copy(isBranchWorking = false, lastUsage = null)
+        }
+    }
+
+    // --- invariants --------------------------------------------------------
+
+    fun loadInvariants() {
+        viewModelScope.launch { refreshInvariants() }
+    }
+
+    fun openInvariantEditor() {
+        _state.value = _state.value.copy(invariantEditor = InvariantEditorState())
+    }
+
+    /** Pick an existing rule to change. Its text and category go into the
+     * editor, and saving sends it back under the same id. */
+    fun onInvariantSelected(id: String) {
+        val existing = _state.value.invariants?.firstOrNull { it.id == id } ?: return
+        _state.value = _state.value.copy(
+            invariantEditor = InvariantEditorState(
+                editingId = existing.id,
+                category = existing.category,
+                rule = existing.rule
+            )
+        )
+    }
+
+    fun onInvariantRuleChanged(rule: String) {
+        val editor = _state.value.invariantEditor ?: return
+        _state.value = _state.value.copy(invariantEditor = editor.copy(rule = rule))
+    }
+
+    fun onInvariantCategorySelected(category: AgentInvariantCategory) {
+        val editor = _state.value.invariantEditor ?: return
+        _state.value = _state.value.copy(invariantEditor = editor.copy(category = category))
+    }
+
+    fun dismissInvariantEditor() {
+        _state.value = _state.value.copy(invariantEditor = null)
+    }
+
+    fun saveInvariant() {
+        val editor = _state.value.invariantEditor ?: return
+        val rule = editor.rule.trim()
+
+        if (rule.isEmpty() || _state.value.isInvariantsWorking) return
+
+        _state.value = _state.value.copy(isInvariantsWorking = true, invariantsError = null)
+
+        viewModelScope.launch {
+            try {
+                val saved = agentRepository.saveInvariant(editor.editingId, editor.category, rule)
+                _state.value = _state.value.copy(
+                    isInvariantsWorking = false,
+                    invariants = saved,
+                    invariantEditor = null
+                )
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                _state.value = _state.value.copy(
+                    isInvariantsWorking = false,
+                    invariantsError = e.toErrorMessage()
+                )
+            }
+        }
+    }
+
+    fun deleteInvariant(id: String) {
+        if (_state.value.isInvariantsWorking) return
+
+        _state.value = _state.value.copy(isInvariantsWorking = true, invariantsError = null)
+
+        viewModelScope.launch {
+            try {
+                val remaining = agentRepository.deleteInvariant(id)
+                _state.value = _state.value.copy(
+                    isInvariantsWorking = false,
+                    invariants = remaining,
+                    invariantEditor = _state.value.invariantEditor?.takeIf { it.editingId != id }
+                )
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                _state.value = _state.value.copy(
+                    isInvariantsWorking = false,
+                    invariantsError = e.toErrorMessage()
+                )
+            }
+        }
+    }
+
+    private suspend fun refreshInvariants() {
+        try {
+            _state.value = _state.value.copy(
+                invariants = agentRepository.getInvariants(),
+                invariantsError = null
+            )
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            _state.value = _state.value.copy(invariantsError = e.toErrorMessage())
         }
     }
 

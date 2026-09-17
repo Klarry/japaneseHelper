@@ -2,6 +2,8 @@ package com.japanesehelper
 
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentContextStrategy
+import com.japanesehelper.domain.model.AgentInvariant
+import com.japanesehelper.domain.model.AgentInvariantCategory
 import com.japanesehelper.domain.model.AgentLongTermMemory
 import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMemoryLayer
@@ -22,11 +24,13 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -73,6 +77,12 @@ class AiAgentViewModelTest {
         whenever(repository.getContext()).thenReturn(context)
     }
 
+    private fun invariant(
+        id: String = "stack-storage",
+        category: AgentInvariantCategory = AgentInvariantCategory.TECHNOLOGY_STACK,
+        rule: String = "Storage: JSON files"
+    ) = AgentInvariant(id, category, rule)
+
     private fun task(
         stage: String = "execution",
         currentStep: String = "шаг 2 из 4",
@@ -111,6 +121,14 @@ class AiAgentViewModelTest {
         override suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile = profile
         override suspend fun getTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun clearTaskState(): AgentTaskState = AgentTaskState()
+        override suspend fun getInvariants(): List<AgentInvariant> = emptyList()
+        override suspend fun saveInvariant(
+            id: String?,
+            category: AgentInvariantCategory,
+            rule: String
+        ): List<AgentInvariant> = emptyList()
+
+        override suspend fun deleteInvariant(id: String): List<AgentInvariant> = emptyList()
     }
 
     // --- opening the screen -------------------------------------------------
@@ -760,5 +778,115 @@ class AiAgentViewModelTest {
         assertFalse(AgentTaskState(stage = "idle").isActive)
         assertTrue(AgentTaskState(stage = "planning").isActive)
         assertTrue(task().isActive)
+    }
+
+    // --- invariants ---------------------------------------------------------
+
+    @Test
+    fun `the rules are loaded when the screen opens`() = runTest {
+        given()
+        whenever(repository.getInvariants()).thenReturn(listOf(invariant()))
+
+        val viewModel = createViewModel()
+
+        verify(repository, times(1)).getInvariants()
+        assertEquals("Storage: JSON files", viewModel.state.value.invariants?.single()?.rule)
+    }
+
+    @Test
+    fun `a new rule is sent without an id, since the backend names it`() = runTest {
+        given()
+        whenever(repository.getInvariants()).thenReturn(emptyList())
+        whenever(repository.saveInvariant(anyOrNull(), any(), any())).thenReturn(listOf(invariant()))
+        val viewModel = createViewModel()
+
+        viewModel.openInvariantEditor()
+        viewModel.onInvariantCategorySelected(AgentInvariantCategory.BUSINESS_RULES)
+        viewModel.onInvariantRuleChanged("Только материалы JLPT")
+        viewModel.saveInvariant()
+
+        verify(repository, times(1))
+            .saveInvariant(null, AgentInvariantCategory.BUSINESS_RULES, "Только материалы JLPT")
+        assertNull(viewModel.state.value.invariantEditor)
+    }
+
+    @Test
+    fun `choosing a rule puts it in the editor and saves it under the same id`() = runTest {
+        given()
+        whenever(repository.getInvariants()).thenReturn(listOf(invariant()))
+        whenever(repository.saveInvariant(anyOrNull(), any(), any())).thenReturn(listOf(invariant()))
+        val viewModel = createViewModel()
+        viewModel.openInvariantEditor()
+
+        viewModel.onInvariantSelected("stack-storage")
+        assertEquals("Storage: JSON files", viewModel.state.value.invariantEditor?.rule)
+        viewModel.onInvariantRuleChanged("Storage: JSON files only")
+        viewModel.saveInvariant()
+
+        verify(repository, times(1))
+            .saveInvariant("stack-storage", AgentInvariantCategory.TECHNOLOGY_STACK, "Storage: JSON files only")
+    }
+
+    @Test
+    fun `an empty rule is not sent anywhere`() = runTest {
+        given()
+        whenever(repository.getInvariants()).thenReturn(emptyList())
+        val viewModel = createViewModel()
+        viewModel.openInvariantEditor()
+
+        viewModel.onInvariantRuleChanged("   ")
+        viewModel.saveInvariant()
+
+        verify(repository, never()).saveInvariant(anyOrNull(), any(), any())
+        assertNotNull(viewModel.state.value.invariantEditor)
+    }
+
+    @Test
+    fun `deleting a rule shows what the backend kept`() = runTest {
+        given()
+        whenever(repository.getInvariants()).thenReturn(listOf(invariant(), invariant(id = "decision-no-sqlite")))
+        whenever(repository.deleteInvariant(any())).thenReturn(listOf(invariant()))
+        val viewModel = createViewModel()
+
+        viewModel.deleteInvariant("decision-no-sqlite")
+
+        verify(repository, times(1)).deleteInvariant("decision-no-sqlite")
+        assertEquals(1, viewModel.state.value.invariants?.size)
+        assertFalse(viewModel.state.value.isInvariantsWorking)
+    }
+
+    @Test
+    fun `a failed save surfaces as an error and keeps the editor open`() = runTest {
+        given()
+        whenever(repository.getInvariants()).thenReturn(emptyList())
+        whenever(repository.saveInvariant(anyOrNull(), any(), any()))
+            .thenThrow(RuntimeException("network down"))
+        val viewModel = createViewModel()
+        viewModel.openInvariantEditor()
+        viewModel.onInvariantRuleChanged("Новое правило")
+
+        viewModel.saveInvariant()
+
+        assertEquals("network down", viewModel.state.value.invariantsError)
+        assertNotNull(viewModel.state.value.invariantEditor)
+    }
+
+    /** The device never inspects a message against the rules - it sends it
+     * and shows the reply, like any other. */
+    @Test
+    fun `asking about a conflict is an ordinary message, not a local check`() = runTest {
+        given()
+        whenever(repository.getInvariants()).thenReturn(listOf(invariant()))
+        whenever(repository.chat(any(), any())).thenReturn(
+            reply("Так сделать нельзя: правило «Storage: JSON files». Альтернатива — индекс поверх JSON.")
+        )
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Давай возьмём SQLite вместо JSON.")
+
+        viewModel.send()
+
+        verify(repository, times(1)).chat("Давай возьмём SQLite вместо JSON.", AgentContextStrategy.SLIDING_WINDOW)
+        val history = viewModel.state.value.history as AgentHistoryUiState.Loaded
+        assertTrue(history.messages.last().content.contains("правило"))
     }
 }
