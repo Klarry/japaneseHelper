@@ -1,5 +1,6 @@
 package com.japanesehelper.data.mapper
 
+import com.google.gson.Gson
 import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentHistoryMessageDto
@@ -125,8 +126,10 @@ fun AgentTaskRefusalDto.toDomain(): AgentTaskRefusal = AgentTaskRefusal(
  * than shown as raw JSON - but only if it really is one: anything else
  * (a gateway error page, an empty body) stays an ordinary failure.
  */
+private val refusalGson = Gson()
+
 fun parseTaskRefusal(body: String): AgentTaskRefusal? = runCatching {
-    Gson().fromJson(body, AgentTaskErrorDto::class.java)?.detail?.toDomain()
+    refusalGson.fromJson(body, AgentTaskErrorDto::class.java)?.detail?.toDomain()
 }.getOrNull()?.takeIf { it.currentStage.isNotBlank() }
 
 /** A rule whose category this build does not know about is dropped rather
