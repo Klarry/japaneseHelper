@@ -8,6 +8,7 @@ import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentReply
+import com.japanesehelper.domain.model.AgentTaskStage
 import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentUserProfile
 
@@ -26,6 +27,22 @@ interface AgentRepository {
     suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile
     suspend fun getTaskState(): AgentTaskState
     suspend fun clearTaskState(): AgentTaskState
+
+    /**
+     * Ask the backend to move the task to [stage].
+     *
+     * Returns the new state when the move is allowed, and throws
+     * [com.japanesehelper.domain.model.AgentTaskTransitionRefused] with the
+     * backend's own explanation when it is not. Nothing decides that here.
+     */
+    suspend fun requestTaskTransition(stage: AgentTaskStage): AgentTaskState
+
+    /** Record the plan the task will be executed by - the backend's
+     * condition for leaving planning. */
+    suspend fun approveTaskPlan(plan: String): AgentTaskState
+
+    /** Record how validation went - the backend's condition for done. */
+    suspend fun recordTaskValidation(passed: Boolean, notes: String = ""): AgentTaskState
     suspend fun getInvariants(): List<AgentInvariant>
     suspend fun saveInvariant(
         id: String?,

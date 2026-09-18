@@ -1,5 +1,6 @@
 package com.japanesehelper.data.repository
 
+import com.japanesehelper.data.mapper.parseTaskRefusal
 import com.japanesehelper.data.mapper.toDomain
 import com.japanesehelper.data.mapper.toRequestDto
 import com.japanesehelper.data.remote.api.AgentApi
@@ -8,6 +9,9 @@ import com.japanesehelper.data.remote.dto.AgentBranchSwitchRequestDto
 import com.japanesehelper.data.remote.dto.AgentChatRequestDto
 import com.japanesehelper.data.remote.dto.AgentInvariantRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyRequestDto
+import com.japanesehelper.data.remote.dto.AgentTaskPlanRequestDto
+import com.japanesehelper.data.remote.dto.AgentTaskTransitionRequestDto
+import com.japanesehelper.data.remote.dto.AgentTaskValidationRequestDto
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentContextStrategy
 import com.japanesehelper.domain.model.AgentInvariant
@@ -16,12 +20,17 @@ import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentReply
+import com.japanesehelper.domain.model.AgentTaskStage
 import com.japanesehelper.domain.model.AgentTaskState
+import com.japanesehelper.domain.model.AgentTaskTransitionRefused
 import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.repository.AgentRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import retrofit2.HttpException
 import javax.inject.Inject
+
+private const val HTTP_CONFLICT = 409
 
 class AgentRepositoryImpl @Inject constructor(
     private val agentApi: AgentApi
@@ -88,6 +97,41 @@ class AgentRepositoryImpl @Inject constructor(
 
     override suspend fun clearTaskState(): AgentTaskState = withContext(Dispatchers.IO) {
         agentApi.clearTaskState().toDomain()
+    }
+
+    override suspend fun requestTaskTransition(stage: AgentTaskStage): AgentTaskState =
+        withContext(Dispatchers.IO) {
+            asRefusal { agentApi.requestTaskTransition(AgentTaskTransitionRequestDto(stage.wireName)).toDomain() }
+        }
+
+    override suspend fun approveTaskPlan(plan: String): AgentTaskState = withContext(Dispatchers.IO) {
+        asRefusal { agentApi.approveTaskPlan(AgentTaskPlanRequestDto(plan)).toDomain() }
+    }
+
+    override suspend fun recordTaskValidation(passed: Boolean, notes: String): AgentTaskState =
+        withContext(Dispatchers.IO) {
+            asRefusal { agentApi.recordTaskValidation(AgentTaskValidationRequestDto(passed, notes)).toDomain() }
+        }
+
+    /**
+     * Turns the backend's "no" into something the screen can show.
+     *
+     * A refused task request comes back as 409 with the whole explanation in
+     * the body. That is an answer, not a failure, so it is read into
+     * [AgentTaskTransitionRefused]; anything else stays the exception it was.
+     */
+    private inline fun <T> asRefusal(block: () -> T): T {
+        try {
+            return block()
+        } catch (e: HttpException) {
+            val refusal = if (e.code() == HTTP_CONFLICT) {
+                e.response()?.errorBody()?.string()?.let(::parseTaskRefusal)
+            } else {
+                null
+            }
+
+            throw refusal?.let { AgentTaskTransitionRefused(it) } ?: e
+        }
     }
 
     override suspend fun getInvariants(): List<AgentInvariant> = withContext(Dispatchers.IO) {

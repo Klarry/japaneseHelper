@@ -15,7 +15,10 @@ import com.japanesehelper.data.remote.dto.AgentUserProfileDto
 import com.japanesehelper.data.remote.dto.AgentUserProfileRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyResponseDto
+import com.japanesehelper.data.remote.dto.AgentTaskPlanRequestDto
 import com.japanesehelper.data.remote.dto.AgentTaskStateDto
+import com.japanesehelper.data.remote.dto.AgentTaskTransitionRequestDto
+import com.japanesehelper.data.remote.dto.AgentTaskValidationRequestDto
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -81,6 +84,23 @@ interface AgentApi {
 
     @DELETE("agent/task")
     suspend fun clearTaskState(): AgentTaskStateDto
+
+    /** Ask for a move. 409 with the refusal when the backend does not allow
+     * it; the device sends the request either way and shows the answer. */
+    @POST("agent/task/transition")
+    suspend fun requestTaskTransition(
+        @Body request: AgentTaskTransitionRequestDto
+    ): AgentTaskStateDto
+
+    @POST("agent/task/plan")
+    suspend fun approveTaskPlan(
+        @Body request: AgentTaskPlanRequestDto
+    ): AgentTaskStateDto
+
+    @POST("agent/task/validation")
+    suspend fun recordTaskValidation(
+        @Body request: AgentTaskValidationRequestDto
+    ): AgentTaskStateDto
 
     @GET("agent/invariants")
     suspend fun getInvariants(): AgentInvariantsResponseDto

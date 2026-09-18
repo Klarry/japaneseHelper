@@ -9,6 +9,8 @@ import com.japanesehelper.data.remote.dto.AgentInvariantsResponseDto
 import com.japanesehelper.data.remote.dto.AgentLongTermMemoryDto
 import com.japanesehelper.data.remote.dto.AgentMemoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentShortTermMemoryDto
+import com.japanesehelper.data.remote.dto.AgentTaskErrorDto
+import com.japanesehelper.data.remote.dto.AgentTaskRefusalDto
 import com.japanesehelper.data.remote.dto.AgentTaskStateDto
 import com.japanesehelper.data.remote.dto.AgentUserProfileDto
 import com.japanesehelper.data.remote.dto.AgentUserProfileRequestDto
@@ -23,6 +25,7 @@ import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
+import com.japanesehelper.domain.model.AgentTaskRefusal
 import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentTokenUsage
 import com.japanesehelper.domain.model.AgentUserProfile
@@ -100,8 +103,31 @@ fun AgentTaskStateDto.toDomain(): AgentTaskState = AgentTaskState(
     stage = taskStage,
     currentStep = currentStep,
     expectedAction = expectedAction,
-    allowedNext = allowedNext
+    allowedNext = allowedNext,
+    plan = plan.orEmpty(),
+    validationPassed = validationPassed == true,
+    nextRequirement = nextRequirement.orEmpty(),
+    blocked = blocked?.toDomain()
 )
+
+fun AgentTaskRefusalDto.toDomain(): AgentTaskRefusal = AgentTaskRefusal(
+    message = message.orEmpty(),
+    currentStage = currentStage.orEmpty(),
+    requestedStage = requestedStage.orEmpty(),
+    requiredNext = requiredNext.orEmpty(),
+    unmetCondition = unmetCondition.orEmpty()
+)
+
+/**
+ * The refusal out of an error response body, or null if the body is not one.
+ *
+ * A refusal is the backend's answer, not an outage, so it is read rather
+ * than shown as raw JSON - but only if it really is one: anything else
+ * (a gateway error page, an empty body) stays an ordinary failure.
+ */
+fun parseTaskRefusal(body: String): AgentTaskRefusal? = runCatching {
+    Gson().fromJson(body, AgentTaskErrorDto::class.java)?.detail?.toDomain()
+}.getOrNull()?.takeIf { it.currentStage.isNotBlank() }
 
 /** A rule whose category this build does not know about is dropped rather
  * than shown under a made-up heading - the backend owns that list. */

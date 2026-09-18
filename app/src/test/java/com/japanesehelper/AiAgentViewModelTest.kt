@@ -12,7 +12,10 @@ import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentProfilePreset
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
+import com.japanesehelper.domain.model.AgentTaskRefusal
+import com.japanesehelper.domain.model.AgentTaskStage
 import com.japanesehelper.domain.model.AgentTaskState
+import com.japanesehelper.domain.model.AgentTaskTransitionRefused
 import com.japanesehelper.domain.model.AgentTokenUsage
 import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.model.AgentWorkingMemory
@@ -121,6 +124,14 @@ class AiAgentViewModelTest {
         override suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile = profile
         override suspend fun getTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun clearTaskState(): AgentTaskState = AgentTaskState()
+        override suspend fun requestTaskTransition(stage: AgentTaskStage): AgentTaskState =
+            AgentTaskState(stage = stage.wireName)
+
+        override suspend fun approveTaskPlan(plan: String): AgentTaskState =
+            AgentTaskState(stage = "planning", plan = plan)
+
+        override suspend fun recordTaskValidation(passed: Boolean, notes: String): AgentTaskState =
+            AgentTaskState(stage = "validation", validationPassed = passed)
         override suspend fun getInvariants(): List<AgentInvariant> = emptyList()
         override suspend fun saveInvariant(
             id: String?,
@@ -919,5 +930,191 @@ class AiAgentViewModelTest {
 
         verify(repository, never()).deleteInvariant(any())
         assertEquals(1, viewModel.state.value.invariants?.size)
+    }
+
+    // --- controlled transitions (Day 15) ------------------------------------
+
+    private fun refusal(
+        requestedStage: String = "done",
+        currentStage: String = "planning",
+        requiredNext: List<String> = listOf("execution"),
+        unmetCondition: String = "the task has not been through execution and validation yet"
+    ) = AgentTaskRefusal(
+        message = "The task is in '$currentStage' and cannot move to '$requestedStage'.",
+        currentStage = currentStage,
+        requestedStage = requestedStage,
+        requiredNext = requiredNext,
+        unmetCondition = unmetCondition
+    )
+
+    @Test
+    fun `a stage the backend accepts becomes the stage on screen`() = runTest {
+        given()
+        whenever(repository.getTaskState()).thenReturn(task(stage = "planning", currentStep = "составляем план"))
+        whenever(repository.requestTaskTransition(AgentTaskStage.EXECUTION))
+            .thenReturn(task(stage = "execution", currentStep = "шаг 1 из 4"))
+        val viewModel = createViewModel()
+
+        viewModel.requestTaskTransition(AgentTaskStage.EXECUTION)
+
+        verify(repository, times(1)).requestTaskTransition(AgentTaskStage.EXECUTION)
+        assertEquals("execution", viewModel.state.value.taskState?.stage)
+        assertNull(viewModel.state.value.taskRefusal)
+        assertFalse(viewModel.state.value.isTaskWorking)
+    }
+
+    /** The device does not know which moves are legal, so it sends the one it
+     * was asked for - that is how it finds out. */
+    @Test
+    fun `a jump the backend refuses is asked for all the same`() = runTest {
+        given()
+        whenever(repository.getTaskState()).thenReturn(task(stage = "planning", allowedNext = listOf("execution")))
+        whenever(repository.requestTaskTransition(AgentTaskStage.DONE))
+            .thenThrow(AgentTaskTransitionRefused(refusal()))
+        val viewModel = createViewModel()
+
+        viewModel.requestTaskTransition(AgentTaskStage.DONE)
+
+        verify(repository, times(1)).requestTaskTransition(AgentTaskStage.DONE)
+    }
+
+    @Test
+    fun `a refused move is shown in the backend's own words`() = runTest {
+        given()
+        whenever(repository.getTaskState()).thenReturn(task(stage = "planning"))
+        whenever(repository.requestTaskTransition(AgentTaskStage.DONE))
+            .thenThrow(AgentTaskTransitionRefused(refusal()))
+        val viewModel = createViewModel()
+
+        viewModel.requestTaskTransition(AgentTaskStage.DONE)
+
+        val shown = viewModel.state.value.taskRefusal!!
+        assertEquals("done", shown.requestedStage)
+        assertEquals("planning", shown.currentStage)
+        assertEquals(listOf("execution"), shown.requiredNext)
+        assertEquals("the task has not been through execution and validation yet", shown.unmetCondition)
+    }
+
+    @Test
+    fun `a refused move leaves the stage exactly where it was`() = runTest {
+        given()
+        whenever(repository.getTaskState()).thenReturn(task(stage = "planning", currentStep = "составляем план"))
+        whenever(repository.requestTaskTransition(AgentTaskStage.DONE))
+            .thenThrow(AgentTaskTransitionRefused(refusal()))
+        val viewModel = createViewModel()
+
+        viewModel.requestTaskTransition(AgentTaskStage.DONE)
+
+        assertEquals("planning", viewModel.state.value.taskState?.stage)
+        assertEquals("составляем план", viewModel.state.value.taskState?.currentStep)
+        assertFalse(viewModel.state.value.isTaskWorking)
+        assertNull(viewModel.state.value.contextError)
+    }
+
+    @Test
+    fun `a refusal is not reported as a failure of the app`() = runTest {
+        given()
+        whenever(repository.getTaskState()).thenReturn(task(stage = "planning"))
+        whenever(repository.requestTaskTransition(AgentTaskStage.DONE))
+            .thenThrow(AgentTaskTransitionRefused(refusal()))
+        val viewModel = createViewModel()
+
+        viewModel.requestTaskTransition(AgentTaskStage.DONE)
+
+        assertNull(viewModel.state.value.contextError)
+    }
+
+    /** A restart reads the same task: the stage it was left in, and the reason
+     * it did not advance. */
+    @Test
+    fun `reopening the screen shows the stage and the refusal the backend kept`() = runTest {
+        given()
+        whenever(repository.getTaskState()).thenReturn(
+            task(stage = "execution", currentStep = "шаг 2 из 4").copy(
+                blocked = refusal(currentStage = "execution", requiredNext = listOf("validation"))
+            )
+        )
+
+        val viewModel = createViewModel()
+
+        assertEquals("execution", viewModel.state.value.taskState?.stage)
+        assertEquals("шаг 2 из 4", viewModel.state.value.taskState?.currentStep)
+        assertEquals("execution", viewModel.state.value.taskRefusal?.currentStage)
+    }
+
+    @Test
+    fun `the rest of the way is walked one accepted stage at a time`() = runTest {
+        given()
+        whenever(repository.getTaskState()).thenReturn(task(stage = "execution"))
+        whenever(repository.requestTaskTransition(AgentTaskStage.VALIDATION))
+            .thenReturn(task(stage = "validation", currentStep = "проверяем", allowedNext = listOf("done")))
+        whenever(repository.recordTaskValidation(true, ""))
+            .thenReturn(task(stage = "validation", allowedNext = listOf("done")).copy(validationPassed = true))
+        whenever(repository.requestTaskTransition(AgentTaskStage.DONE))
+            .thenReturn(task(stage = "done", currentStep = "задача завершена", allowedNext = emptyList()))
+        val viewModel = createViewModel()
+
+        viewModel.requestTaskTransition(AgentTaskStage.VALIDATION)
+        assertEquals("validation", viewModel.state.value.taskState?.stage)
+
+        viewModel.recordTaskValidation(passed = true)
+        assertTrue(viewModel.state.value.taskState!!.validationPassed)
+
+        viewModel.requestTaskTransition(AgentTaskStage.DONE)
+        assertEquals("done", viewModel.state.value.taskState?.stage)
+        assertTrue(viewModel.state.value.taskState!!.allowedNext.isEmpty())
+    }
+
+    @Test
+    fun `approving a plan sends the text and shows what came back`() = runTest {
+        given()
+        whenever(repository.getTaskState()).thenReturn(task(stage = "planning"))
+        whenever(repository.approveTaskPlan("4 шага: разбор, примеры, проверка, вывод"))
+            .thenReturn(task(stage = "planning", allowedNext = listOf("execution")).copy(plan = "4 шага"))
+        val viewModel = createViewModel()
+
+        viewModel.startEditingPlan()
+        viewModel.onPlanChanged("4 шага: разбор, примеры, проверка, вывод")
+        viewModel.approveTaskPlan()
+
+        verify(repository, times(1)).approveTaskPlan("4 шага: разбор, примеры, проверка, вывод")
+        assertNull(viewModel.state.value.planEditor)
+        assertEquals("4 шага", viewModel.state.value.taskState?.plan)
+    }
+
+    @Test
+    fun `an empty plan is not sent anywhere`() = runTest {
+        given()
+        val viewModel = createViewModel()
+
+        viewModel.startEditingPlan()
+        viewModel.onPlanChanged("   ")
+        viewModel.approveTaskPlan()
+
+        verify(repository, never()).approveTaskPlan(any())
+    }
+
+    @Test
+    fun `approving a plan in the wrong stage is refused by the backend, not here`() = runTest {
+        given()
+        whenever(repository.getTaskState()).thenReturn(task(stage = "execution"))
+        whenever(repository.approveTaskPlan(any())).thenThrow(
+            AgentTaskTransitionRefused(
+                AgentTaskRefusal(
+                    message = "The task is in 'execution'",
+                    currentStage = "execution",
+                    unmetCondition = "the task is not in 'planning'"
+                )
+            )
+        )
+        val viewModel = createViewModel()
+
+        viewModel.startEditingPlan()
+        viewModel.onPlanChanged("поздний план")
+        viewModel.approveTaskPlan()
+
+        verify(repository, times(1)).approveTaskPlan("поздний план")
+        assertEquals("the task is not in 'planning'", viewModel.state.value.taskRefusal?.unmetCondition)
+        assertEquals("execution", viewModel.state.value.taskState?.stage)
     }
 }

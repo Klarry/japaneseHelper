@@ -107,6 +107,17 @@
     <string name="ai_agent_task_step">Current step</string>
     <string name="ai_agent_task_action">Expected action</string>
     <string name="ai_agent_task_clear_button">End task</string>
+    <string name="ai_agent_task_plan">Plan</string>
+    <string name="ai_agent_task_requires">Next requires</string>
+    <string name="ai_agent_task_approve_plan_button">Approve plan</string>
+    <string name="ai_agent_task_validation_button">Validation passed</string>
+    <string name="ai_agent_task_plan_dialog_title">Approve plan</string>
+    <string name="ai_agent_task_plan_placeholder">The plan the task follows</string>
+    <string name="ai_agent_task_plan_approve">Approve</string>
+    <string name="ai_agent_task_plan_cancel">Cancel</string>
+    <string name="ai_agent_task_cannot_move">Cannot move to %1$s.</string>
+    <string name="ai_agent_task_refusal_current">Current stage: %1$s.</string>
+    <string name="ai_agent_task_refusal_required">Required stage: %1$s.</string>
     <string name="ai_agent_invariants_title">Invariants</string>
     <string name="ai_agent_invariants_empty">No rules set</string>
     <string name="ai_agent_invariants_unavailable">Not loaded</string>

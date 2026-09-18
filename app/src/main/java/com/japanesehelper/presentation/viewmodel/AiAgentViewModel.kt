@@ -8,6 +8,9 @@ import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentProfilePreset
+import com.japanesehelper.domain.model.AgentTaskStage
+import com.japanesehelper.domain.model.AgentTaskState
+import com.japanesehelper.domain.model.AgentTaskTransitionRefused
 import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.repository.AgentRepository
 import com.japanesehelper.presentation.viewmodel.screendata.AgentHistoryUiState
@@ -347,7 +350,74 @@ class AiAgentViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val cleared = agentRepository.clearTaskState()
-                _state.value = _state.value.copy(isTaskWorking = false, taskState = cleared)
+                _state.value = _state.value.copy(
+                    isTaskWorking = false,
+                    taskState = cleared,
+                    taskRefusal = cleared.blocked
+                )
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                _state.value = _state.value.copy(isTaskWorking = false, contextError = e.toErrorMessage())
+            }
+        }
+    }
+
+    /**
+     * Ask the backend to move the task to [stage].
+     *
+     * Every stage is offered, including the ones the task cannot move to:
+     * whether a move is allowed is the backend's answer, and asking is how
+     * the device finds out. A refusal is shown as the backend worded it and
+     * leaves the displayed state alone - because nothing moved.
+     */
+    fun requestTaskTransition(stage: AgentTaskStage) {
+        runTaskRequest { agentRepository.requestTaskTransition(stage) }
+    }
+
+    /** Record the plan the task will be executed by, and close the editor. */
+    fun approveTaskPlan() {
+        val plan = _state.value.planEditor?.trim().orEmpty()
+
+        if (plan.isEmpty()) return
+
+        _state.value = _state.value.copy(planEditor = null)
+        runTaskRequest { agentRepository.approveTaskPlan(plan) }
+    }
+
+    fun startEditingPlan() {
+        _state.value = _state.value.copy(planEditor = _state.value.taskState?.plan.orEmpty())
+    }
+
+    fun onPlanChanged(plan: String) {
+        if (_state.value.planEditor == null) return
+
+        _state.value = _state.value.copy(planEditor = plan)
+    }
+
+    fun stopEditingPlan() {
+        _state.value = _state.value.copy(planEditor = null)
+    }
+
+    /** Record how validation went. Sent from the device, judged on the
+     * backend: recording it outside validation is refused there. */
+    fun recordTaskValidation(passed: Boolean) {
+        runTaskRequest { agentRepository.recordTaskValidation(passed) }
+    }
+
+    private fun runTaskRequest(request: suspend () -> AgentTaskState) {
+        if (_state.value.isTaskWorking) return
+
+        _state.value = _state.value.copy(isTaskWorking = true, taskRefusal = null, contextError = null)
+
+        viewModelScope.launch {
+            try {
+                val updated = request()
+                _state.value = _state.value.copy(
+                    isTaskWorking = false,
+                    taskState = updated,
+                    taskRefusal = updated.blocked
+                )
+            } catch (e: AgentTaskTransitionRefused) {
+                _state.value = _state.value.copy(isTaskWorking = false, taskRefusal = e.refusal)
             } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                 _state.value = _state.value.copy(isTaskWorking = false, contextError = e.toErrorMessage())
             }
@@ -356,7 +426,14 @@ class AiAgentViewModel @Inject constructor(
 
     private suspend fun refreshTaskState() {
         try {
-            _state.value = _state.value.copy(taskState = agentRepository.getTaskState(), contextError = null)
+            val taskState = agentRepository.getTaskState()
+            // The refusal comes back with the state, so the reason a task did
+            // not advance is still on the screen after the app is reopened.
+            _state.value = _state.value.copy(
+                taskState = taskState,
+                taskRefusal = taskState.blocked,
+                contextError = null
+            )
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             _state.value = _state.value.copy(contextError = e.toErrorMessage())
         }

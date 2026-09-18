@@ -34,6 +34,7 @@ import com.japanesehelper.presentation.screens.aiAgentScreen.components.ClearHis
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextStrategyTabRow
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.CreateBranchDialog
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.ApprovePlanDialog
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.EditInvariantsDialog
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.EditProfileDialog
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.InvariantsSection
@@ -197,7 +198,11 @@ fun AiAgentScreen(
 
                     TaskStateSection(
                         taskState = state.taskState,
+                        refusal = state.taskRefusal,
                         isWorking = state.isTaskWorking,
+                        onRequestStage = viewModel::requestTaskTransition,
+                        onApprovePlan = viewModel::startEditingPlan,
+                        onValidationPassed = { viewModel.recordTaskValidation(passed = true) },
                         onClear = viewModel::clearTaskState
                     )
 
@@ -268,6 +273,17 @@ fun AiAgentScreen(
                 onProfileChanged = viewModel::onProfileEdited,
                 onConfirm = viewModel::confirmProfileEdit,
                 onDismiss = viewModel::dismissProfileEditor
+            )
+        }
+
+        val planEditor = state.planEditor
+        if (planEditor != null) {
+            ApprovePlanDialog(
+                plan = planEditor,
+                isWorking = state.isTaskWorking,
+                onPlanChanged = viewModel::onPlanChanged,
+                onApprove = viewModel::approveTaskPlan,
+                onDismiss = viewModel::stopEditingPlan
             )
         }
 

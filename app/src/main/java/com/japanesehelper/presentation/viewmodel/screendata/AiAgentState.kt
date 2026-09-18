@@ -6,6 +6,7 @@ import com.japanesehelper.domain.model.AgentInvariant
 import com.japanesehelper.domain.model.AgentInvariantCategory
 import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMessage
+import com.japanesehelper.domain.model.AgentTaskRefusal
 import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentTokenUsage
 import com.japanesehelper.domain.model.AgentUserProfile
@@ -67,6 +68,12 @@ data class AiAgentScreenState(
      * between them belong to the backend; this is what it reports. */
     val taskState: AgentTaskState? = null,
     val isTaskWorking: Boolean = false,
+    /** The last move the backend refused, in its own words. Set from the
+     * refused request and from the task state itself, which keeps it until
+     * a move works - so it is still there after a restart. */
+    val taskRefusal: AgentTaskRefusal? = null,
+    /** The plan being written, while the one-field dialog is open. */
+    val planEditor: String? = null,
     /** The rules the backend will not let the agent break. Shown here and
      * edited through the backend; nothing is checked against them on the
      * device. */
