@@ -3,6 +3,7 @@ package com.japanesehelper.presentation.screens.aiAgentScreen.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import com.japanesehelper.R
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
+import com.japanesehelper.domain.model.AgentToolCall
 import com.japanesehelper.presentation.screens.homeScreen.components.CenteredLoadingIndicator
 import com.japanesehelper.presentation.screens.homeScreen.components.ErrorWithRetry
 import com.japanesehelper.presentation.screens.homeScreen.components.MarkdownText
@@ -108,10 +110,38 @@ private fun MessageList(messages: List<AgentMessage>, modifier: Modifier = Modif
         items(messages) { message ->
             when (message.role) {
                 AgentMessageRole.USER -> LearnerMessage(message.content)
-                AgentMessageRole.ASSISTANT -> MarkdownText(markdown = message.content)
+                AgentMessageRole.ASSISTANT -> AgentAnswer(message)
             }
         }
     }
+}
+
+/**
+ * The agent's answer, and above it, when the backend looked something up to
+ * write it, one small line per MCP tool it called - so it is visible that the
+ * answer came from the dictionary rather than from the model's memory.
+ */
+@Composable
+private fun AgentAnswer(message: AgentMessage) {
+    Column(verticalArrangement = Arrangement.spacedBy(LocalAppPadding.current.quarter)) {
+        message.toolCalls.forEach { call -> ToolCallStatus(call) }
+        MarkdownText(markdown = message.content)
+    }
+}
+
+@Composable
+private fun ToolCallStatus(call: AgentToolCall) {
+    val invocation = stringResource(
+        R.string.ai_agent_tool_call,
+        call.tool,
+        call.arguments.values.joinToString(", ")
+    )
+
+    Text(
+        text = if (call.ok) invocation else stringResource(R.string.ai_agent_tool_call_failed, invocation),
+        style = MaterialTheme.typography.labelSmall,
+        color = if (call.ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    )
 }
 
 /**

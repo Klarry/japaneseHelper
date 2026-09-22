@@ -2,6 +2,7 @@ package com.japanesehelper.data.mapper
 
 import com.google.gson.Gson
 import com.japanesehelper.data.remote.dto.AgentChatResponseDto
+import com.japanesehelper.data.remote.dto.AgentToolCallDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentHistoryMessageDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
@@ -29,11 +30,29 @@ import com.japanesehelper.domain.model.AgentShortTermMemory
 import com.japanesehelper.domain.model.AgentTaskRefusal
 import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentTokenUsage
+import com.japanesehelper.domain.model.AgentToolCall
 import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.model.AgentWorkingMemory
 
 fun AgentChatResponseDto.toDomain(): AgentReply {
-    return AgentReply(text = response, usage = usage.toDomain())
+    return AgentReply(
+        text = response,
+        usage = usage.toDomain(),
+        toolCalls = toolCalls.orEmpty().mapNotNull { it.toDomain() }
+    )
+}
+
+/** An entry without a tool name says nothing that can be shown, so it is
+ * dropped. Arguments are shown as text: a word, a kanji. */
+fun AgentToolCallDto.toDomain(): AgentToolCall? {
+    val name = tool?.takeIf { it.isNotBlank() } ?: return null
+
+    return AgentToolCall(
+        tool = name,
+        arguments = arguments.orEmpty().mapValues { (_, value) -> value?.toString().orEmpty() },
+        ok = ok ?: true,
+        error = error.orEmpty()
+    )
 }
 
 fun AgentUsageDto.toDomain(): AgentTokenUsage {

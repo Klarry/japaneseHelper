@@ -114,7 +114,11 @@ class AiAgentViewModel @Inject constructor(
                 val reply = agentRepository.chat(message, strategy)
                 val updatedMessages = currentMessages() +
                     AgentMessage(role = AgentMessageRole.USER, content = message) +
-                    AgentMessage(role = AgentMessageRole.ASSISTANT, content = reply.text)
+                    AgentMessage(
+                        role = AgentMessageRole.ASSISTANT,
+                        content = reply.text,
+                        toolCalls = reply.toolCalls
+                    )
 
                 _state.value = _state.value.copy(
                     message = "",

@@ -17,6 +17,7 @@ import com.japanesehelper.domain.model.AgentTaskStage
 import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentTaskTransitionRefused
 import com.japanesehelper.domain.model.AgentTokenUsage
+import com.japanesehelper.domain.model.AgentToolCall
 import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.model.AgentWorkingMemory
 import com.japanesehelper.domain.repository.AgentRepository
@@ -1116,5 +1117,61 @@ class AiAgentViewModelTest {
         verify(repository, times(1)).approveTaskPlan("поздний план")
         assertEquals("the task is not in 'planning'", viewModel.state.value.taskRefusal?.unmetCondition)
         assertEquals("execution", viewModel.state.value.taskState?.stage)
+    }
+
+    // --- MCP tool calls (Day 17) -------------------------------------------
+
+    @Test
+    fun `the tools behind an answer are attached to that answer`() = runTest {
+        given()
+        val lookup = AgentToolCall(tool = "get_japanese_word_info", arguments = mapOf("word" to "学習"))
+        whenever(repository.chat(any(), any())).thenReturn(
+            AgentReply("学習 (がくしゅう) — учёба, N3.", usage(), toolCalls = listOf(lookup))
+        )
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Что означает 学習? Дай чтение и перевод.")
+
+        viewModel.send()
+
+        val messages = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages
+        assertEquals(AgentMessageRole.USER, messages[0].role)
+        assertTrue(messages[0].toolCalls.isEmpty())
+        assertEquals("学習 (がくしゅう) — учёба, N3.", messages[1].content)
+        assertEquals(listOf(lookup), messages[1].toolCalls)
+    }
+
+    @Test
+    fun `an answer that needed no lookup carries no tool status`() = runTest {
+        given()
+        whenever(repository.chat(any(), any())).thenReturn(reply("〜ながら — одновременность."))
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Объясни 〜ながら")
+
+        viewModel.send()
+
+        val messages = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages
+        assertTrue(messages.last().toolCalls.isEmpty())
+    }
+
+    @Test
+    fun `a failed lookup is still shown, as failed`() = runTest {
+        given()
+        val failed = AgentToolCall(
+            tool = "get_japanese_word_info",
+            arguments = mapOf("word" to "学習"),
+            ok = false,
+            error = "the JLPT vocabulary API answered with status 503"
+        )
+        whenever(repository.chat(any(), any())).thenReturn(
+            AgentReply("Не удалось проверить слово в словаре.", usage(), toolCalls = listOf(failed))
+        )
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Что означает 学習?")
+
+        viewModel.send()
+
+        val answer = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
+        assertFalse(answer.toolCalls.single().ok)
+        assertNull(viewModel.state.value.sendError)
     }
 }
