@@ -1222,6 +1222,34 @@ class AiAgentViewModelTest {
         assertEquals(12, viewModel.state.value.digest?.itemsCollected)
     }
 
+    /** The block used to move only when the screen was reopened. While the
+     * screen is on show it re-reads itself, and stops the moment it is
+     * gone - the schedule stays on the backend either way. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `the periodic task block re-reads itself while the screen is open`() = runTest {
+        var reads = 0
+        val counting = object : FakeAgentRepository() {
+            override suspend fun getDigest(): AgentDigest {
+                reads += 1
+                return digest(runs = reads, collected = reads * 3)
+            }
+        }
+        val viewModel = createViewModel(counting)
+        val onOpen = reads
+
+        viewModel.startWatchingPeriodicTask()
+        coroutineRule.scheduler.advanceTimeBy(16_000)
+        val whileOpen = reads
+
+        assertTrue("expected repeated reads, got $whileOpen after $onOpen", whileOpen >= onOpen + 3)
+        assertEquals(whileOpen, viewModel.state.value.digest?.runs)
+
+        viewModel.stopWatchingPeriodicTask()
+        coroutineRule.scheduler.advanceTimeBy(16_000)
+        assertEquals(whileOpen, reads)
+    }
+
     @Test
     fun `a digest that cannot be read leaves the conversation alone`() = runTest {
         given()

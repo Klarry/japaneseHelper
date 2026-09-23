@@ -16,6 +16,10 @@ class MainDispatcherRule(
     private val dispatcher: TestDispatcher = UnconfinedTestDispatcher()
 ): TestWatcher(), CoroutineScope by TestScope(dispatcher) {
 
+    /** The clock the ViewModel's own coroutines run on, so a test can move
+     * time forward for a repeat that waits between turns. */
+    val scheduler get() = dispatcher.scheduler
+
     override fun starting(description: Description?) {
         Dispatchers.setMain(dispatcher)
     }

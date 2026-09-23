@@ -19,11 +19,20 @@ import com.japanesehelper.presentation.viewmodel.screendata.InvariantEditorState
 import com.japanesehelper.presentation.viewmodel.screendata.NewBranchState
 import com.japanesehelper.presentation.viewmodel.screendata.ProfileEditorState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import javax.inject.Inject
+
+/** How often the periodic-task block re-reads itself while the screen is on
+ * show. Short enough that a run which happened on the backend appears while
+ * the learner is still looking at the block, long enough that a readout does
+ * not turn into a stream of requests. */
+private const val DIGEST_POLL_MILLIS = 5_000L
 
 /**
  * The AI Agent screen is a simple chat: history is loaded once on open, every
@@ -43,6 +52,11 @@ class AiAgentViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(AiAgentScreenState())
     val state: StateFlow<AiAgentScreenState> = _state
+
+    /** The repeat that keeps the periodic-task block current while the screen
+     * is open. It only re-reads what the backend reports - no part of the
+     * schedule itself lives on the device. */
+    private var digestWatcher: Job? = null
 
     // Opening the screen used to fire five requests at once. On a slow or
     // busy backend they competed with each other and whichever lost came
@@ -427,6 +441,32 @@ class AiAgentViewModel @Inject constructor(
                 _state.value = _state.value.copy(isTaskWorking = false, contextError = e.toErrorMessage())
             }
         }
+    }
+
+    /** Keep the periodic-task block in step with the backend while the screen
+     * is on show. The task runs there whether or not anyone is looking; before
+     * this, the block only caught up when the screen was reopened or another
+     * message was sent. */
+    fun startWatchingPeriodicTask() {
+        if (digestWatcher?.isActive == true) {
+            return
+        }
+        digestWatcher = viewModelScope.launch {
+            while (isActive) {
+                delay(DIGEST_POLL_MILLIS)
+                // A send is already followed by a refresh, and a readout is
+                // not worth competing with the message for the backend.
+                if (!_state.value.isSending) {
+                    refreshDigest()
+                }
+            }
+        }
+    }
+
+    /** Stop re-reading it once the screen is gone. */
+    fun stopWatchingPeriodicTask() {
+        digestWatcher?.cancel()
+        digestWatcher = null
     }
 
     /** Read the periodic digest. Failing to read it is not worth an error on

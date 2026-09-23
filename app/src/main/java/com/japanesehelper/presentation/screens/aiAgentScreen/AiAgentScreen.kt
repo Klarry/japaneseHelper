@@ -17,6 +17,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -96,6 +97,15 @@ fun AiAgentScreen(
     viewModel: AiAgentViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+
+    // The periodic task keeps collecting on the backend. While this screen is
+    // on show, its block re-reads itself, so a run that has just happened is
+    // there without leaving the screen and coming back.
+    DisposableEffect(Unit) {
+        viewModel.startWatchingPeriodicTask()
+        onDispose { viewModel.stopWatchingPeriodicTask() }
+    }
+
     val padding = LocalAppPadding.current
     val loadedMessages = (state.history as? AgentHistoryUiState.Loaded)?.messages
 
