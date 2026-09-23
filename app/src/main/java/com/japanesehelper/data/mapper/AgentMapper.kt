@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentToolCallDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
+import com.japanesehelper.data.remote.dto.AgentDigestDto
 import com.japanesehelper.data.remote.dto.AgentHistoryMessageDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentInvariantDto
@@ -19,6 +20,7 @@ import com.japanesehelper.data.remote.dto.AgentUserProfileRequestDto
 import com.japanesehelper.data.remote.dto.AgentWorkingMemoryDto
 import com.japanesehelper.data.remote.dto.AgentUsageDto
 import com.japanesehelper.domain.model.AgentContext
+import com.japanesehelper.domain.model.AgentDigest
 import com.japanesehelper.domain.model.AgentInvariant
 import com.japanesehelper.domain.model.AgentInvariantCategory
 import com.japanesehelper.domain.model.AgentLongTermMemory
@@ -117,6 +119,18 @@ fun AgentUserProfile.toRequestDto(): AgentUserProfileRequestDto = AgentUserProfi
     explanationStyle = explanationStyle,
     answerFormat = answerFormat,
     translationLanguage = translationLanguage
+)
+
+fun AgentDigestDto.toDomain(): AgentDigest = AgentDigest(
+    found = found == true,
+    active = active == true,
+    query = query.orEmpty(),
+    intervalSeconds = intervalSeconds ?: 0,
+    runs = runs ?: 0,
+    failedRuns = failedRuns ?: 0,
+    lastRun = lastRun.orEmpty(),
+    itemsCollected = itemsCollected ?: 0,
+    summary = summary.orEmpty()
 )
 
 fun AgentTaskStateDto.toDomain(): AgentTaskState = AgentTaskState(

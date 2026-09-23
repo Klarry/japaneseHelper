@@ -56,6 +56,7 @@ class AiAgentViewModel @Inject constructor(
             refreshProfile()
             refreshTaskState()
             refreshInvariants()
+            refreshDigest()
         }
     }
 
@@ -428,6 +429,18 @@ class AiAgentViewModel @Inject constructor(
         }
     }
 
+    /** Read the periodic digest. Failing to read it is not worth an error on
+     * screen: the block simply stays as it was, and the next refresh tries
+     * again. */
+    private suspend fun refreshDigest() {
+        try {
+            _state.value = _state.value.copy(digest = agentRepository.getDigest())
+        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+            // Left as it was on purpose: a readout that could not be refreshed
+            // is not worth an error message over the conversation.
+        }
+    }
+
     private suspend fun refreshTaskState() {
         try {
             val taskState = agentRepository.getTaskState()
@@ -586,6 +599,10 @@ class AiAgentViewModel @Inject constructor(
         if (_state.value.invariants == null) {
             refreshInvariants()
         }
+        // The periodic task runs on the backend whether or not anyone is
+        // looking; re-reading it after a message is how the screen catches up
+        // with the runs that happened in between.
+        refreshDigest()
     }
 
     private suspend fun refreshContextOnly() {

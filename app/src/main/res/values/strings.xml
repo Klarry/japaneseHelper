@@ -58,6 +58,15 @@
     <string name="ai_agent_ask_button">Ask Agent</string>
     <string name="ai_agent_empty_state">No conversation yet. Ask something to get started.</string>
     <string name="ai_agent_tool_call">MCP tool: %1$s(%2$s)</string>
+    <string name="ai_agent_digest_title">Periodic task</string>
+    <string name="ai_agent_digest_none">No periodic task</string>
+    <string name="ai_agent_digest_state">Periodic task: %1$s</string>
+    <string name="ai_agent_digest_active">Active</string>
+    <string name="ai_agent_digest_stopped">Stopped</string>
+    <string name="ai_agent_digest_interval">Interval: %1$d sec</string>
+    <string name="ai_agent_digest_runs">Runs: %1$d · collected: %2$d</string>
+    <string name="ai_agent_digest_last_run">Last run: %1$s</string>
+    <string name="ai_agent_digest_collecting">Collecting: %1$s</string>
     <string name="ai_agent_tool_call_failed">%1$s · failed</string>
     <string name="ai_agent_clear_history_button">Clear History</string>
     <string name="ai_agent_usage_title">Token usage</string>

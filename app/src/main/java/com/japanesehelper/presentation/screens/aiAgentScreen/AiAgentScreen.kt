@@ -39,6 +39,7 @@ import com.japanesehelper.presentation.screens.aiAgentScreen.components.EditInva
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.EditProfileDialog
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.InvariantsSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.MemoryLayersSection
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.PeriodicTaskSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TaskStateSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TokenUsageSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.UserProfileSection
@@ -195,6 +196,8 @@ fun AiAgentScreen(
                     if (profileError != null) {
                         ReadoutError(profileError)
                     }
+
+                    PeriodicTaskSection(digest = state.digest)
 
                     TaskStateSection(
                         taskState = state.taskState,

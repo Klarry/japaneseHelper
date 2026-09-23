@@ -13,6 +13,7 @@ import com.japanesehelper.data.remote.dto.AgentTaskPlanRequestDto
 import com.japanesehelper.data.remote.dto.AgentTaskTransitionRequestDto
 import com.japanesehelper.data.remote.dto.AgentTaskValidationRequestDto
 import com.japanesehelper.domain.model.AgentContext
+import com.japanesehelper.domain.model.AgentDigest
 import com.japanesehelper.domain.model.AgentContextStrategy
 import com.japanesehelper.domain.model.AgentInvariant
 import com.japanesehelper.domain.model.AgentInvariantCategory
@@ -90,6 +91,10 @@ class AgentRepositoryImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             agentApi.updateProfile(profile.toRequestDto()).toDomain()
         }
+
+    override suspend fun getDigest(): AgentDigest = withContext(Dispatchers.IO) {
+        agentApi.getDigest().toDomain()
+    }
 
     override suspend fun getTaskState(): AgentTaskState = withContext(Dispatchers.IO) {
         agentApi.getTaskState().toDomain()

@@ -7,6 +7,7 @@ import com.japanesehelper.data.remote.dto.AgentChatRequestDto
 import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentCheckpointResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
+import com.japanesehelper.data.remote.dto.AgentDigestDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentInvariantRequestDto
 import com.japanesehelper.data.remote.dto.AgentInvariantsResponseDto
@@ -78,6 +79,11 @@ interface AgentApi {
     suspend fun updateProfile(
         @Body request: AgentUserProfileRequestDto
     ): AgentUserProfileDto
+
+    /** What the backend's periodic task has collected. Reading it changes
+     * nothing: the runs happen on the backend's own schedule. */
+    @GET("agent/digest")
+    suspend fun getDigest(): AgentDigestDto
 
     @GET("agent/task")
     suspend fun getTaskState(): AgentTaskStateDto

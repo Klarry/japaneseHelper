@@ -2,6 +2,7 @@ package com.japanesehelper
 
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentContextStrategy
+import com.japanesehelper.domain.model.AgentDigest
 import com.japanesehelper.domain.model.AgentInvariant
 import com.japanesehelper.domain.model.AgentInvariantCategory
 import com.japanesehelper.domain.model.AgentLongTermMemory
@@ -123,6 +124,7 @@ class AiAgentViewModelTest {
         override suspend fun clearMemoryLayer(layer: AgentMemoryLayer): AgentMemory = AgentMemory()
         override suspend fun getProfile(): AgentUserProfile = AgentUserProfile()
         override suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile = profile
+        override suspend fun getDigest(): AgentDigest = AgentDigest()
         override suspend fun getTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun clearTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun requestTaskTransition(stage: AgentTaskStage): AgentTaskState =
@@ -1173,5 +1175,62 @@ class AiAgentViewModelTest {
         val answer = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
         assertFalse(answer.toolCalls.single().ok)
         assertNull(viewModel.state.value.sendError)
+    }
+
+    // --- the periodic task readout (Day 18) --------------------------------
+
+    private fun digest(runs: Int = 3, collected: Int = 9) = AgentDigest(
+        found = true,
+        active = true,
+        query = "N5 words",
+        intervalSeconds = 10,
+        runs = runs,
+        lastRun = "2026-09-23T17:04:08+00:00",
+        itemsCollected = collected,
+        summary = "$collected word(s) collected in $runs run(s)"
+    )
+
+    @Test
+    fun `the periodic task is read when the screen opens`() = runTest {
+        given()
+        whenever(repository.getDigest()).thenReturn(digest())
+
+        val viewModel = createViewModel()
+
+        verify(repository, times(1)).getDigest()
+        assertEquals(3, viewModel.state.value.digest?.runs)
+        assertEquals(10, viewModel.state.value.digest?.intervalSeconds)
+        assertTrue(viewModel.state.value.digest!!.active)
+    }
+
+    /** The task runs on the backend with nobody asking; re-reading it after a
+     * message is how the screen catches up. */
+    @Test
+    fun `the runs that happened between messages show up after the next one`() = runTest {
+        given()
+        whenever(repository.getDigest())
+            .thenReturn(digest(runs = 1, collected = 3))
+            .thenReturn(digest(runs = 4, collected = 12))
+        whenever(repository.chat(any(), any())).thenReturn(reply("сводка"))
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Покажи последнюю сводку")
+
+        viewModel.send()
+
+        verify(repository, times(2)).getDigest()
+        assertEquals(4, viewModel.state.value.digest?.runs)
+        assertEquals(12, viewModel.state.value.digest?.itemsCollected)
+    }
+
+    @Test
+    fun `a digest that cannot be read leaves the conversation alone`() = runTest {
+        given()
+        whenever(repository.getDigest()).thenThrow(RuntimeException("network down"))
+
+        val viewModel = createViewModel()
+
+        assertNull(viewModel.state.value.digest)
+        assertNull(viewModel.state.value.sendError)
+        assertTrue(viewModel.state.value.history is AgentHistoryUiState.Loaded)
     }
 }

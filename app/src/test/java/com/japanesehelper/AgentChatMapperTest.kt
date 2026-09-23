@@ -5,6 +5,7 @@ import com.japanesehelper.data.mapper.toDomain
 import com.japanesehelper.data.remote.dto.AgentChatRequestDto
 import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
+import com.japanesehelper.data.remote.dto.AgentDigestDto
 import com.japanesehelper.domain.model.AgentMessageRole
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -164,5 +165,51 @@ class AgentChatMapperTest {
         """.trimIndent()
 
         assertTrue(gson.fromJson(json, AgentChatResponseDto::class.java).toDomain().toolCalls.isEmpty())
+    }
+
+    // --- the periodic digest (Day 18) --------------------------------------
+
+    @Test
+    fun `the digest the backend reports deserializes and maps`() {
+        val json = """
+            {
+              "found": true,
+              "summary": "9 word(s) collected for 'N5 words' in 3 run(s) every 10s…",
+              "task_id": "digest-1",
+              "query": "N5 words",
+              "interval_seconds": 10,
+              "active": true,
+              "runs": 3,
+              "failed_runs": 0,
+              "last_run": "2026-09-23T17:04:08+00:00",
+              "next_run": "2026-09-23T17:04:18+00:00",
+              "items_collected": 9,
+              "unique_words": 4,
+              "levels": {"N5": 9},
+              "latest_items": [{"word": "勉強", "reading": "べんきょう"}],
+              "last_error": ""
+            }
+        """.trimIndent()
+
+        val domain = gson.fromJson(json, AgentDigestDto::class.java).toDomain()
+
+        assertTrue(domain.found)
+        assertTrue(domain.active)
+        assertEquals("N5 words", domain.query)
+        assertEquals(10, domain.intervalSeconds)
+        assertEquals(3, domain.runs)
+        assertEquals(9, domain.itemsCollected)
+        assertEquals("2026-09-23T17:04:08+00:00", domain.lastRun)
+    }
+
+    @Test
+    fun `a backend with no periodic task maps to none`() {
+        val json = """{"found": false, "summary": "No periodic digest has been created yet."}"""
+
+        val domain = gson.fromJson(json, AgentDigestDto::class.java).toDomain()
+
+        assertFalse(domain.found)
+        assertEquals(0, domain.runs)
+        assertEquals(0, domain.intervalSeconds)
     }
 }
