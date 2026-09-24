@@ -120,12 +120,17 @@ private fun MessageList(messages: List<AgentMessage>, modifier: Modifier = Modif
  * The agent's answer, and above it, when the backend looked something up to
  * write it, one small line per MCP tool it called - so it is visible that the
  * answer came from the dictionary rather than from the model's memory.
+ *
+ * When those calls were the backend's chain rather than a single lookup, what
+ * it produced is shown underneath the answer: the stages, the words, the
+ * summary and the file it was saved to.
  */
 @Composable
 private fun AgentAnswer(message: AgentMessage) {
     Column(verticalArrangement = Arrangement.spacedBy(LocalAppPadding.current.quarter)) {
         message.toolCalls.forEach { call -> ToolCallStatus(call) }
         MarkdownText(markdown = message.content)
+        message.pipeline?.let { pipeline -> PipelineStatus(pipeline) }
     }
 }
 

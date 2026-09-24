@@ -7,8 +7,10 @@ import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentDigestDto
 import com.japanesehelper.domain.model.AgentMessageRole
+import com.japanesehelper.domain.model.AgentPipelineStage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -211,5 +213,148 @@ class AgentChatMapperTest {
         assertFalse(domain.found)
         assertEquals(0, domain.runs)
         assertEquals(0, domain.intervalSeconds)
+    }
+
+    // --- the MCP pipeline (Day 19) -----------------------------------------
+    //
+    // One answer, three tool calls. The chain itself runs on the backend;
+    // what is checked here is that the report of it survives the wire.
+
+    private val pipelineJson = """
+        {
+          "response": "Нашёл, сделал сводку и сохранил.",
+          "usage": {"current_request_tokens": 500, "history_tokens": 0,
+                    "response_tokens": 40, "total_tokens": 540},
+          "tool_calls": [
+            {
+              "tool": "search",
+              "arguments": {"query": "学習"},
+              "ok": true,
+              "result": {
+                "query": "学習", "found": true, "count": 1,
+                "matches": [{"word": "学習", "reading": "がくしゅう", "romaji": "gakushū",
+                             "meaning": "study, learning", "jlpt_level": "N3"}],
+                "source": "jlpt-vocab-api.vercel.app"
+              },
+              "error": ""
+            },
+            {
+              "tool": "summarize",
+              "arguments": {"findings": {"query": "学習"}},
+              "ok": true,
+              "result": {"query": "学習", "summary": "'学習': 1 JLPT entry, N3 x1.", "based_on": 1},
+              "error": ""
+            },
+            {
+              "tool": "save_to_file",
+              "arguments": {"summary": {}, "findings": {}},
+              "ok": true,
+              "result": {"status": "saved", "file_name": "20260924T170535-学習.json",
+                         "path": "data/pipeline/20260924T170535-学習.json", "bytes_written": 940},
+              "error": ""
+            }
+          ]
+        }
+    """.trimIndent()
+
+    @Test
+    fun `the three stages of the chain arrive in the order the backend ran them`() {
+        val pipeline = gson.fromJson(pipelineJson, AgentChatResponseDto::class.java).toDomain().pipeline
+
+        assertNotNull(pipeline)
+        assertEquals(
+            listOf(AgentPipelineStage.SEARCH, AgentPipelineStage.SUMMARIZE, AgentPipelineStage.SAVE),
+            pipeline!!.steps.map { it.stage }
+        )
+        assertTrue(pipeline.completed)
+        assertNull(pipeline.failed)
+    }
+
+    @Test
+    fun `what each stage produced is read from its own result`() {
+        val pipeline = gson.fromJson(pipelineJson, AgentChatResponseDto::class.java).toDomain().pipeline!!
+
+        assertEquals("学習", pipeline.query)
+        assertEquals(1, pipeline.found.size)
+        assertEquals("がくしゅう", pipeline.found.single().reading)
+        assertEquals("study, learning", pipeline.found.single().meaning)
+        assertEquals("N3", pipeline.found.single().level)
+        assertEquals("'学習': 1 JLPT entry, N3 x1.", pipeline.summary)
+        assertEquals("20260924T170535-学習.json", pipeline.fileName)
+        assertEquals("data/pipeline/20260924T170535-学習.json", pipeline.filePath)
+    }
+
+    @Test
+    fun `the tool call lines are still reported next to the chain`() {
+        val reply = gson.fromJson(pipelineJson, AgentChatResponseDto::class.java).toDomain()
+
+        assertEquals(listOf("search", "summarize", "save_to_file"), reply.toolCalls.map { it.tool })
+        assertTrue(reply.toolCalls.all { it.ok })
+    }
+
+    @Test
+    fun `a chain that stopped early reports only the stages that ran`() {
+        val json = """
+            {
+              "response": "Не удалось: словарь недоступен.",
+              "usage": {"current_request_tokens": 1, "history_tokens": 0,
+                        "response_tokens": 1, "total_tokens": 2},
+              "tool_calls": [
+                {"tool": "search", "arguments": {"query": "学習"}, "ok": false,
+                 "result": null, "error": "the dictionary could not be reached"}
+              ]
+            }
+        """.trimIndent()
+
+        val pipeline = gson.fromJson(json, AgentChatResponseDto::class.java).toDomain().pipeline!!
+
+        assertEquals(listOf(AgentPipelineStage.SEARCH), pipeline.steps.map { it.stage })
+        assertFalse(pipeline.completed)
+        assertEquals("the dictionary could not be reached", pipeline.failed?.error)
+        assertEquals("", pipeline.fileName)
+        assertTrue(pipeline.found.isEmpty())
+    }
+
+    @Test
+    fun `an ordinary lookup is not reported as a chain`() {
+        val json = """
+            {
+              "response": "学習 (がくしゅう) — study.",
+              "usage": {"current_request_tokens": 1, "history_tokens": 0,
+                        "response_tokens": 1, "total_tokens": 2},
+              "tool_calls": [
+                {"tool": "get_japanese_word_info", "arguments": {"word": "学習"}, "ok": true,
+                 "result": {"found": true}, "error": ""}
+              ]
+            }
+        """.trimIndent()
+
+        val reply = gson.fromJson(json, AgentChatResponseDto::class.java).toDomain()
+
+        assertNull(reply.pipeline)
+        assertEquals(1, reply.toolCalls.size)
+    }
+
+    @Test
+    fun `a tool that answered with text instead of an object does not break the answer`() {
+        val json = """
+            {
+              "response": "answer",
+              "usage": {"current_request_tokens": 1, "history_tokens": 0,
+                        "response_tokens": 1, "total_tokens": 2},
+              "tool_calls": [
+                {"tool": "search", "arguments": {"query": "学習"}, "ok": true,
+                 "result": "plain text, not an object", "error": ""},
+                {"tool": "summarize", "arguments": {}, "ok": true, "result": null, "error": ""}
+              ]
+            }
+        """.trimIndent()
+
+        val reply = gson.fromJson(json, AgentChatResponseDto::class.java).toDomain()
+
+        assertEquals("answer", reply.text)
+        assertEquals(2, reply.pipeline!!.steps.size)
+        assertTrue(reply.pipeline!!.found.isEmpty())
+        assertEquals("", reply.pipeline!!.summary)
     }
 }

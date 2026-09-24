@@ -132,7 +132,8 @@ class AiAgentViewModel @Inject constructor(
                     AgentMessage(
                         role = AgentMessageRole.ASSISTANT,
                         content = reply.text,
-                        toolCalls = reply.toolCalls
+                        toolCalls = reply.toolCalls,
+                        pipeline = reply.pipeline
                     )
 
                 _state.value = _state.value.copy(

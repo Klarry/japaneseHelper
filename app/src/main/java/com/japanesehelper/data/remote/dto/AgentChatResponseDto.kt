@@ -1,5 +1,6 @@
 package com.japanesehelper.data.remote.dto
 
+import com.google.gson.JsonElement
 import com.google.gson.annotations.SerializedName
 
 data class AgentChatResponseDto(
@@ -10,12 +11,19 @@ data class AgentChatResponseDto(
 )
 
 /**
- * One entry of ``tool_calls``. The backend also sends the tool's full result;
- * the screen only says which tool was used, so the result is not read.
+ * One entry of ``tool_calls``: which tool the backend called and how it went.
+ *
+ * ``result`` is the tool's own output, and its shape is the tool's business -
+ * the backend documents it as an object, a string or nothing at all. It is
+ * kept as a raw JsonElement rather than a typed model for exactly that
+ * reason: a tool that answers with a string must not break the parsing of
+ * the answer it belongs to. The mapper reads the few fields the pipeline
+ * readout shows and ignores the rest.
  */
 data class AgentToolCallDto(
     @SerializedName("tool") val tool: String?,
     @SerializedName("arguments") val arguments: Map<String, Any?>?,
     @SerializedName("ok") val ok: Boolean?,
-    @SerializedName("error") val error: String?
+    @SerializedName("error") val error: String?,
+    @SerializedName("result") val result: JsonElement? = null
 )

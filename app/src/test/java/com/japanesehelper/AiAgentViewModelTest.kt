@@ -10,6 +10,10 @@ import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
+import com.japanesehelper.domain.model.AgentPipeline
+import com.japanesehelper.domain.model.AgentPipelineStage
+import com.japanesehelper.domain.model.AgentPipelineStep
+import com.japanesehelper.domain.model.AgentPipelineWord
 import com.japanesehelper.domain.model.AgentProfilePreset
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
@@ -1175,6 +1179,50 @@ class AiAgentViewModelTest {
         val answer = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
         assertFalse(answer.toolCalls.single().ok)
         assertNull(viewModel.state.value.sendError)
+    }
+
+    // --- the MCP pipeline on the screen (Day 19) ---------------------------
+
+    @Test
+    fun `the chain the backend ran arrives with the answer and is kept on the message`() {
+        given()
+        val pipeline = AgentPipeline(
+            query = "学習",
+            steps = listOf(
+                AgentPipelineStep(AgentPipelineStage.SEARCH),
+                AgentPipelineStep(AgentPipelineStage.SUMMARIZE),
+                AgentPipelineStep(AgentPipelineStage.SAVE)
+            ),
+            found = listOf(AgentPipelineWord("学習", "がくしゅう", "gakushū", "study, learning", "N3")),
+            summary = "'学習': 1 JLPT entry, N3 x1.",
+            fileName = "20260924T170535-学習.json",
+            filePath = "data/pipeline/20260924T170535-学習.json"
+        )
+        whenever(repository.chat(any(), any())).thenReturn(
+            AgentReply("Нашёл, сделал сводку и сохранил.", usage(), toolCalls = emptyList(), pipeline = pipeline)
+        )
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Найди информацию о 学習, сделай краткую сводку и сохрани её.")
+
+        viewModel.send()
+
+        val answer = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
+        assertEquals(pipeline, answer.pipeline)
+        assertTrue(answer.pipeline!!.completed)
+        assertEquals("20260924T170535-学習.json", answer.pipeline!!.fileName)
+    }
+
+    @Test
+    fun `an answer without a chain carries none`() {
+        given()
+        whenever(repository.chat(any(), any())).thenReturn(reply("Просто ответ"))
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Объясни грамматику")
+
+        viewModel.send()
+
+        val answer = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
+        assertNull(answer.pipeline)
     }
 
     // --- the periodic task readout (Day 18) --------------------------------

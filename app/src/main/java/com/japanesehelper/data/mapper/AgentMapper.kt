@@ -1,6 +1,9 @@
 package com.japanesehelper.data.mapper
 
 import com.google.gson.Gson
+import com.google.gson.JsonArray
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
 import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentToolCallDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
@@ -27,6 +30,10 @@ import com.japanesehelper.domain.model.AgentLongTermMemory
 import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
+import com.japanesehelper.domain.model.AgentPipeline
+import com.japanesehelper.domain.model.AgentPipelineStage
+import com.japanesehelper.domain.model.AgentPipelineStep
+import com.japanesehelper.domain.model.AgentPipelineWord
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
 import com.japanesehelper.domain.model.AgentTaskRefusal
@@ -40,9 +47,74 @@ fun AgentChatResponseDto.toDomain(): AgentReply {
     return AgentReply(
         text = response,
         usage = usage.toDomain(),
-        toolCalls = toolCalls.orEmpty().mapNotNull { it.toDomain() }
+        toolCalls = toolCalls.orEmpty().mapNotNull { it.toDomain() },
+        pipeline = toolCalls.orEmpty().toPipeline()
     )
 }
+
+/**
+ * The chain, read out of the tool calls the backend already reports: which
+ * stages it says it ran, and the few values from their results the readout
+ * shows. Null when this answer was not a pipeline - an ordinary lookup, or
+ * no tool at all.
+ *
+ * Nothing is decided here. The order is the order the backend sent, a stage
+ * that is missing is missing because the backend stopped there, and no value
+ * is computed from another: the words come from search's result, the summary
+ * from summarize's, the file name from save_to_file's.
+ */
+fun List<AgentToolCallDto>.toPipeline(): AgentPipeline? {
+    val stages = mapNotNull { call ->
+        val stage = call.tool?.let { AgentPipelineStage.of(it) } ?: return@mapNotNull null
+        stage to call
+    }
+
+    if (stages.isEmpty()) {
+        return null
+    }
+
+    val results = stages.associate { (stage, call) -> stage to call.result.asObject() }
+    val search = results[AgentPipelineStage.SEARCH]
+    val summarize = results[AgentPipelineStage.SUMMARIZE]
+    val saved = results[AgentPipelineStage.SAVE]
+
+    return AgentPipeline(
+        query = search.text("query").ifBlank { summarize.text("query") },
+        steps = stages.map { (stage, call) ->
+            AgentPipelineStep(stage = stage, ok = call.ok ?: true, error = call.error.orEmpty())
+        },
+        found = search.array("matches").mapNotNull { it.asObject().toPipelineWord() },
+        summary = summarize.text("summary"),
+        fileName = saved.text("file_name"),
+        filePath = saved.text("path")
+    )
+}
+
+private fun JsonObject.toPipelineWord(): AgentPipelineWord? {
+    val word = text("word")
+
+    if (word.isBlank()) {
+        return null
+    }
+
+    return AgentPipelineWord(
+        word = word,
+        reading = text("reading"),
+        romaji = text("romaji"),
+        meaning = text("meaning"),
+        level = text("jlpt_level")
+    )
+}
+
+/** A tool's result is only useful here when it is an object; a tool that
+ * answered with a string or with nothing reads as absent. */
+private fun JsonElement?.asObject(): JsonObject? = this?.takeIf { it.isJsonObject }?.asJsonObject
+
+private fun JsonObject?.text(field: String): String =
+    this?.get(field)?.takeIf { it.isJsonPrimitive }?.asString.orEmpty()
+
+private fun JsonObject?.array(field: String): List<JsonElement> =
+    (this?.get(field)?.takeIf { it.isJsonArray }?.asJsonArray ?: JsonArray()).toList()
 
 /** An entry without a tool name says nothing that can be shown, so it is
  * dropped. Arguments are shown as text: a word, a kanji. */
