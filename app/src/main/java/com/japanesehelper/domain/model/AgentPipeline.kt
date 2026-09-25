@@ -3,12 +3,14 @@ package com.japanesehelper.domain.model
 /**
  * The three MCP tools the backend runs as one chain, as the screen reads
  * them back: search, then summarize on what search found, then save_to_file
- * on that.
+ * on that. Since Day 20 each of them runs on a server of its own, and the
+ * backend says which - so the readout can show the route as well as the
+ * result.
  *
- * Reported, not run. The device holds no MCP client, calls no tool and knows
- * nothing about the order they belong in - the backend decides that a
- * message needs the chain, runs it, and says in its answer which stages
- * happened and what they produced. This is that report, in the shape the
+ * Reported, not run. The device holds no MCP client, calls no tool, knows
+ * nothing about the order the stages belong in and nothing about which
+ * server offers what - the backend decides all of it, runs the chain, and
+ * says in its answer what happened. This is that report, in the shape the
  * screen shows it.
  */
 enum class AgentPipelineStage(val tool: String) {
@@ -23,9 +25,13 @@ enum class AgentPipelineStage(val tool: String) {
     }
 }
 
-/** One stage the backend reported, and how it went. */
+/** One stage the backend reported: which tool ran, on which of its servers,
+ * and how it went. Both names come from the backend - the device has no idea
+ * which server offers what, and is not supposed to. */
 data class AgentPipelineStep(
     val stage: AgentPipelineStage,
+    val tool: String = "",
+    val server: String = "",
     val ok: Boolean = true,
     val error: String = ""
 )

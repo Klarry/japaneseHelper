@@ -22,6 +22,9 @@ data class AgentChatResponseDto(
  */
 data class AgentToolCallDto(
     @SerializedName("tool") val tool: String?,
+    /** Which MCP server the backend routed the call to (Day 20). Absent from
+     * a backend from before that, which is why it is nullable. */
+    @SerializedName("server") val server: String? = null,
     @SerializedName("arguments") val arguments: Map<String, Any?>?,
     @SerializedName("ok") val ok: Boolean?,
     @SerializedName("error") val error: String?,

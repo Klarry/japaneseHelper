@@ -1189,9 +1189,9 @@ class AiAgentViewModelTest {
         val pipeline = AgentPipeline(
             query = "学習",
             steps = listOf(
-                AgentPipelineStep(AgentPipelineStage.SEARCH),
-                AgentPipelineStep(AgentPipelineStage.SUMMARIZE),
-                AgentPipelineStep(AgentPipelineStage.SAVE)
+                AgentPipelineStep(AgentPipelineStage.SEARCH, "search", "japanese-data"),
+                AgentPipelineStep(AgentPipelineStage.SUMMARIZE, "summarize", "processing"),
+                AgentPipelineStep(AgentPipelineStage.SAVE, "save_to_file", "storage")
             ),
             found = listOf(AgentPipelineWord("学習", "がくしゅう", "gakushū", "study, learning", "N3")),
             summary = "'学習': 1 JLPT entry, N3 x1.",
@@ -1210,6 +1210,11 @@ class AiAgentViewModelTest {
         assertEquals(pipeline, answer.pipeline)
         assertTrue(answer.pipeline!!.completed)
         assertEquals("20260924T170535-学習.json", answer.pipeline!!.fileName)
+        // the route the backend took is on the message too, for the readout
+        assertEquals(
+            listOf("japanese-data", "processing", "storage"),
+            answer.pipeline!!.steps.map { it.server }
+        )
     }
 
     @Test

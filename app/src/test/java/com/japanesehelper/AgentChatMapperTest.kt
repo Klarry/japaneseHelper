@@ -228,6 +228,7 @@ class AgentChatMapperTest {
           "tool_calls": [
             {
               "tool": "search",
+              "server": "japanese-data",
               "arguments": {"query": "学習"},
               "ok": true,
               "result": {
@@ -240,6 +241,7 @@ class AgentChatMapperTest {
             },
             {
               "tool": "summarize",
+              "server": "processing",
               "arguments": {"findings": {"query": "学習"}},
               "ok": true,
               "result": {"query": "学習", "summary": "'学習': 1 JLPT entry, N3 x1.", "based_on": 1},
@@ -247,6 +249,7 @@ class AgentChatMapperTest {
             },
             {
               "tool": "save_to_file",
+              "server": "storage",
               "arguments": {"summary": {}, "findings": {}},
               "ok": true,
               "result": {"status": "saved", "file_name": "20260924T170535-学習.json",
@@ -268,6 +271,39 @@ class AgentChatMapperTest {
         )
         assertTrue(pipeline.completed)
         assertNull(pipeline.failed)
+    }
+
+    @Test
+    fun `each stage says which MCP server ran it`() {
+        val pipeline = gson.fromJson(pipelineJson, AgentChatResponseDto::class.java).toDomain().pipeline!!
+
+        assertEquals(
+            listOf("japanese-data", "processing", "storage"),
+            pipeline.steps.map { it.server }
+        )
+        assertEquals(listOf("search", "summarize", "save_to_file"), pipeline.steps.map { it.tool })
+    }
+
+    @Test
+    fun `a backend that names no server still reports the stages`() {
+        val json = """
+            {
+              "response": "answer",
+              "usage": {"current_request_tokens": 1, "history_tokens": 0,
+                        "response_tokens": 1, "total_tokens": 2},
+              "tool_calls": [
+                {"tool": "search", "arguments": {"query": "学習"}, "ok": true,
+                 "result": {"query": "学習", "matches": []}, "error": ""},
+                {"tool": "summarize", "arguments": {}, "ok": true,
+                 "result": {"summary": "none"}, "error": ""}
+              ]
+            }
+        """.trimIndent()
+
+        val pipeline = gson.fromJson(json, AgentChatResponseDto::class.java).toDomain().pipeline!!
+
+        assertEquals(listOf("", ""), pipeline.steps.map { it.server })
+        assertEquals(listOf("search", "summarize"), pipeline.steps.map { it.tool })
     }
 
     @Test
@@ -300,8 +336,8 @@ class AgentChatMapperTest {
               "usage": {"current_request_tokens": 1, "history_tokens": 0,
                         "response_tokens": 1, "total_tokens": 2},
               "tool_calls": [
-                {"tool": "search", "arguments": {"query": "学習"}, "ok": false,
-                 "result": null, "error": "the dictionary could not be reached"}
+                {"tool": "search", "server": "japanese-data", "arguments": {"query": "学習"},
+                 "ok": false, "result": null, "error": "the dictionary could not be reached"}
               ]
             }
         """.trimIndent()
@@ -309,6 +345,7 @@ class AgentChatMapperTest {
         val pipeline = gson.fromJson(json, AgentChatResponseDto::class.java).toDomain().pipeline!!
 
         assertEquals(listOf(AgentPipelineStage.SEARCH), pipeline.steps.map { it.stage })
+        assertEquals("japanese-data", pipeline.steps.single().server)
         assertFalse(pipeline.completed)
         assertEquals("the dictionary could not be reached", pipeline.failed?.error)
         assertEquals("", pipeline.fileName)

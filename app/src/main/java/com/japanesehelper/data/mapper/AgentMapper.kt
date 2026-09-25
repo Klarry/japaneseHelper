@@ -81,9 +81,15 @@ fun List<AgentToolCallDto>.toPipeline(): AgentPipeline? {
     return AgentPipeline(
         query = search.text("query").ifBlank { summarize.text("query") },
         steps = stages.map { (stage, call) ->
-            AgentPipelineStep(stage = stage, ok = call.ok ?: true, error = call.error.orEmpty())
+            AgentPipelineStep(
+                stage = stage,
+                tool = call.tool.orEmpty(),
+                server = call.server.orEmpty(),
+                ok = call.ok ?: true,
+                error = call.error.orEmpty()
+            )
         },
-        found = search.array("matches").mapNotNull { it.asObject().toPipelineWord() },
+        found = search.array("matches").mapNotNull { it.asObject()?.toPipelineWord() },
         summary = summarize.text("summary"),
         fileName = saved.text("file_name"),
         filePath = saved.text("path")
