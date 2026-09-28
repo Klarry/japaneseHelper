@@ -71,6 +71,7 @@ class AiAgentViewModel @Inject constructor(
             refreshTaskState()
             refreshInvariants()
             refreshDigest()
+            refreshDocumentIndex()
         }
     }
 
@@ -468,6 +469,18 @@ class AiAgentViewModel @Inject constructor(
     fun stopWatchingPeriodicTask() {
         digestWatcher?.cancel()
         digestWatcher = null
+    }
+
+    /** Read how big the backend's document index is. Once per screen: it
+     * changes only when someone runs the indexer on the backend, and like
+     * the other readouts a failure leaves the block empty rather than
+     * breaking the conversation. */
+    private suspend fun refreshDocumentIndex() {
+        try {
+            _state.value = _state.value.copy(documentIndex = agentRepository.getDocumentIndex())
+        } catch (@Suppress("TooGenericExceptionCaught", "SwallowedException") e: Exception) {
+            // An older backend has no such endpoint; the block simply stays empty.
+        }
     }
 
     /** Read the periodic digest. Failing to read it is not worth an error on

@@ -8,6 +8,7 @@ import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentToolCallDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentDigestDto
+import com.japanesehelper.data.remote.dto.AgentDocumentIndexDto
 import com.japanesehelper.data.remote.dto.AgentHistoryMessageDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentInvariantDto
@@ -24,6 +25,7 @@ import com.japanesehelper.data.remote.dto.AgentWorkingMemoryDto
 import com.japanesehelper.data.remote.dto.AgentUsageDto
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentDigest
+import com.japanesehelper.domain.model.AgentDocumentIndex
 import com.japanesehelper.domain.model.AgentInvariant
 import com.japanesehelper.domain.model.AgentInvariantCategory
 import com.japanesehelper.domain.model.AgentLongTermMemory
@@ -251,3 +253,19 @@ fun AgentInvariantDto.toDomain(): AgentInvariant? =
     }
 
 fun AgentInvariantsResponseDto.toDomain(): List<AgentInvariant> = invariants.mapNotNull { it.toDomain() }
+
+
+/** GET /agent/documents -> what the readout shows. Absent numbers read as
+ * zero: an index that has not been built has nothing to report. */
+fun AgentDocumentIndexDto.toDomain(): AgentDocumentIndex {
+    return AgentDocumentIndex(
+        found = found ?: false,
+        documents = documents ?: 0,
+        totalCharacters = totalCharacters ?: 0,
+        fixedChunks = fixedChunks ?: 0,
+        structuralChunks = structuralChunks ?: 0,
+        embeddingModel = embeddingModel.orEmpty(),
+        embeddingDimension = embeddingDimension ?: 0,
+        builtAt = builtAt.orEmpty()
+    )
+}

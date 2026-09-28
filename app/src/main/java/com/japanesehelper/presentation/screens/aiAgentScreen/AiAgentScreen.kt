@@ -35,6 +35,7 @@ import com.japanesehelper.presentation.screens.aiAgentScreen.components.ClearHis
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ContextStrategyTabRow
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.CreateBranchDialog
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.DocumentIndexSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.ApprovePlanDialog
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.EditInvariantsDialog
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.EditProfileDialog
@@ -208,6 +209,8 @@ fun AiAgentScreen(
                     }
 
                     PeriodicTaskSection(digest = state.digest)
+
+                    DocumentIndexSection(index = state.documentIndex)
 
                     TaskStateSection(
                         taskState = state.taskState,

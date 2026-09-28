@@ -67,6 +67,13 @@
     <string name="ai_agent_digest_runs">Runs: %1$d · collected: %2$d</string>
     <string name="ai_agent_digest_last_run">Last run: %1$s</string>
     <string name="ai_agent_digest_collecting">Collecting: %1$s</string>
+    <string name="ai_agent_index_title">Document Index</string>
+    <string name="ai_agent_index_none">No index built</string>
+    <string name="ai_agent_index_documents">Documents: %1$d</string>
+    <string name="ai_agent_index_fixed">Fixed chunks: %1$d</string>
+    <string name="ai_agent_index_structural">Structural chunks: %1$d</string>
+    <string name="ai_agent_index_dimension">Embedding dimension: %1$d</string>
+    <string name="ai_agent_index_model">Embeddings: %1$s</string>
     <string name="ai_agent_tool_call_failed">%1$s · failed</string>
     <string name="ai_agent_pipeline_title">MCP Orchestration</string>
     <string name="ai_agent_pipeline_search">Search</string>

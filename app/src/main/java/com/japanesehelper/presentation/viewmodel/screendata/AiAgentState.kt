@@ -3,6 +3,7 @@ package com.japanesehelper.presentation.viewmodel.screendata
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentContextStrategy
 import com.japanesehelper.domain.model.AgentDigest
+import com.japanesehelper.domain.model.AgentDocumentIndex
 import com.japanesehelper.domain.model.AgentInvariant
 import com.japanesehelper.domain.model.AgentInvariantCategory
 import com.japanesehelper.domain.model.AgentMemory
@@ -69,6 +70,9 @@ data class AiAgentScreenState(
      * other readouts and after every message; the runs themselves happen on
      * the backend whether the screen is open or not. */
     val digest: AgentDigest? = null,
+    /** How big the backend's document index is. Read once when the screen
+     * opens: an index changes only when someone rebuilds it on the backend. */
+    val documentIndex: AgentDocumentIndex? = null,
     /** Where the task in progress has got to. The stages and the moves
      * between them belong to the backend; this is what it reports. */
     val taskState: AgentTaskState? = null,

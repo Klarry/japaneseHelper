@@ -2,6 +2,7 @@ package com.japanesehelper.domain.repository
 
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentDigest
+import com.japanesehelper.domain.model.AgentDocumentIndex
 import com.japanesehelper.domain.model.AgentContextStrategy
 import com.japanesehelper.domain.model.AgentInvariant
 import com.japanesehelper.domain.model.AgentInvariantCategory
@@ -28,6 +29,9 @@ interface AgentRepository {
     suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile
     /** What the backend's periodic digest task has collected so far. */
     suspend fun getDigest(): AgentDigest
+
+    /** How big the backend's local document index is. */
+    suspend fun getDocumentIndex(): AgentDocumentIndex
 
     suspend fun getTaskState(): AgentTaskState
     suspend fun clearTaskState(): AgentTaskState

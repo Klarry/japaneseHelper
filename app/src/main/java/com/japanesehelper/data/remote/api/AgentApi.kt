@@ -8,6 +8,7 @@ import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentCheckpointResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentDigestDto
+import com.japanesehelper.data.remote.dto.AgentDocumentIndexDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentInvariantRequestDto
 import com.japanesehelper.data.remote.dto.AgentInvariantsResponseDto
@@ -84,6 +85,11 @@ interface AgentApi {
      * nothing: the runs happen on the backend's own schedule. */
     @GET("agent/digest")
     suspend fun getDigest(): AgentDigestDto
+
+    /** How big the backend's local document index is. Reading it builds
+     * nothing: the index is made by a command on the backend. */
+    @GET("agent/documents")
+    suspend fun getDocumentIndex(): AgentDocumentIndexDto
 
     @GET("agent/task")
     suspend fun getTaskState(): AgentTaskStateDto

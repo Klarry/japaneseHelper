@@ -2,6 +2,7 @@ package com.japanesehelper
 
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentContextStrategy
+import com.japanesehelper.domain.model.AgentDocumentIndex
 import com.japanesehelper.domain.model.AgentDigest
 import com.japanesehelper.domain.model.AgentInvariant
 import com.japanesehelper.domain.model.AgentInvariantCategory
@@ -129,6 +130,7 @@ class AiAgentViewModelTest {
         override suspend fun getProfile(): AgentUserProfile = AgentUserProfile()
         override suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile = profile
         override suspend fun getDigest(): AgentDigest = AgentDigest()
+        override suspend fun getDocumentIndex(): AgentDocumentIndex = AgentDocumentIndex()
         override suspend fun getTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun clearTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun requestTaskTransition(stage: AgentTaskStage): AgentTaskState =
@@ -1178,6 +1180,45 @@ class AiAgentViewModelTest {
 
         val answer = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
         assertFalse(answer.toolCalls.single().ok)
+        assertNull(viewModel.state.value.sendError)
+    }
+
+    // --- the document index readout (Day 21) -------------------------------
+
+    @Test
+    fun `the index the backend reports is on the screen when it opens`() {
+        given()
+        whenever(repository.getDocumentIndex()).thenReturn(
+            AgentDocumentIndex(
+                found = true,
+                documents = 62,
+                totalCharacters = 423830,
+                fixedChunks = 546,
+                structuralChunks = 623,
+                embeddingModel = "gemini-embedding-001",
+                embeddingDimension = 768
+            )
+        )
+
+        val viewModel = createViewModel()
+
+        verify(repository, times(1)).getDocumentIndex()
+        val index = viewModel.state.value.documentIndex
+        assertEquals(62, index?.documents)
+        assertEquals(546, index?.fixedChunks)
+        assertEquals(623, index?.structuralChunks)
+        assertEquals(768, index?.embeddingDimension)
+    }
+
+    @Test
+    fun `a backend without an index does not break the screen`() {
+        given()
+        whenever(repository.getDocumentIndex()).thenThrow(RuntimeException("404"))
+
+        val viewModel = createViewModel()
+
+        assertNull(viewModel.state.value.documentIndex)
+        assertTrue(viewModel.state.value.history is AgentHistoryUiState.Loaded)
         assertNull(viewModel.state.value.sendError)
     }
 

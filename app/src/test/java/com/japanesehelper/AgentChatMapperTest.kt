@@ -6,6 +6,7 @@ import com.japanesehelper.data.remote.dto.AgentChatRequestDto
 import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentDigestDto
+import com.japanesehelper.data.remote.dto.AgentDocumentIndexDto
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentPipelineStage
 import org.junit.Assert.assertEquals
@@ -393,5 +394,41 @@ class AgentChatMapperTest {
         assertEquals(2, reply.pipeline!!.steps.size)
         assertTrue(reply.pipeline!!.found.isEmpty())
         assertEquals("", reply.pipeline!!.summary)
+    }
+
+    // --- the document index (Day 21) ---------------------------------------
+
+    @Test
+    fun `the index summary deserializes from the backend's snake_case`() {
+        val json = """
+            {
+              "found": true,
+              "documents": 62,
+              "total_characters": 423830,
+              "fixed_chunks": 546,
+              "structural_chunks": 623,
+              "embedding_model": "gemini-embedding-001",
+              "embedding_dimension": 768,
+              "built_at": "2026-09-28T17:48:29+0000"
+            }
+        """.trimIndent()
+
+        val index = gson.fromJson(json, AgentDocumentIndexDto::class.java).toDomain()
+
+        assertTrue(index.found)
+        assertEquals(62, index.documents)
+        assertEquals(546, index.fixedChunks)
+        assertEquals(623, index.structuralChunks)
+        assertEquals(768, index.embeddingDimension)
+        assertEquals("gemini-embedding-001", index.embeddingModel)
+    }
+
+    @Test
+    fun `an index that was never built reads as empty, not as an error`() {
+        val index = gson.fromJson("""{"found": false}""", AgentDocumentIndexDto::class.java).toDomain()
+
+        assertFalse(index.found)
+        assertEquals(0, index.documents)
+        assertEquals("", index.embeddingModel)
     }
 }

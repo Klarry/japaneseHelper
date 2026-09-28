@@ -14,6 +14,7 @@ import com.japanesehelper.data.remote.dto.AgentTaskTransitionRequestDto
 import com.japanesehelper.data.remote.dto.AgentTaskValidationRequestDto
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentDigest
+import com.japanesehelper.domain.model.AgentDocumentIndex
 import com.japanesehelper.domain.model.AgentContextStrategy
 import com.japanesehelper.domain.model.AgentInvariant
 import com.japanesehelper.domain.model.AgentInvariantCategory
@@ -94,6 +95,10 @@ class AgentRepositoryImpl @Inject constructor(
 
     override suspend fun getDigest(): AgentDigest = withContext(Dispatchers.IO) {
         agentApi.getDigest().toDomain()
+    }
+
+    override suspend fun getDocumentIndex(): AgentDocumentIndex = withContext(Dispatchers.IO) {
+        agentApi.getDocumentIndex().toDomain()
     }
 
     override suspend fun getTaskState(): AgentTaskState = withContext(Dispatchers.IO) {
