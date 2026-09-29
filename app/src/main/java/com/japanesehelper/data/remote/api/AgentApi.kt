@@ -9,6 +9,8 @@ import com.japanesehelper.data.remote.dto.AgentCheckpointResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentDigestDto
 import com.japanesehelper.data.remote.dto.AgentDocumentIndexDto
+import com.japanesehelper.data.remote.dto.AgentRagRequestDto
+import com.japanesehelper.data.remote.dto.AgentRagResponseDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentInvariantRequestDto
 import com.japanesehelper.data.remote.dto.AgentInvariantsResponseDto
@@ -90,6 +92,11 @@ interface AgentApi {
      * nothing: the index is made by a command on the backend. */
     @GET("agent/documents")
     suspend fun getDocumentIndex(): AgentDocumentIndexDto
+
+    /** Ask the document index a question. The backend retrieves, builds the
+     * prompt and answers; the device only says whether to retrieve. */
+    @POST("agent/rag")
+    suspend fun askWithRag(@Body request: AgentRagRequestDto): AgentRagResponseDto
 
     @GET("agent/task")
     suspend fun getTaskState(): AgentTaskStateDto

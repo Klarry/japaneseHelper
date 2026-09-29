@@ -7,6 +7,7 @@ import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentDigestDto
 import com.japanesehelper.data.remote.dto.AgentDocumentIndexDto
+import com.japanesehelper.data.remote.dto.AgentRagResponseDto
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentPipelineStage
 import org.junit.Assert.assertEquals
@@ -430,5 +431,52 @@ class AgentChatMapperTest {
         assertFalse(index.found)
         assertEquals(0, index.documents)
         assertEquals("", index.embeddingModel)
+    }
+
+    // --- the RAG answer (Day 22) -------------------------------------------
+
+    @Test
+    fun `a RAG answer arrives with its sources and chunks`() {
+        val json = """
+            {
+              "answer": "According to `README.md`, the scheduler ticks once a second.",
+              "rag_enabled": true,
+              "sources": ["README.md / Configuration", "app/services/digest_scheduler.py / module header"],
+              "retrieved_chunks": [
+                {"chunk_id": "README_3", "file": "README.md", "section": "Configuration", "score": 0.7123},
+                {"chunk_id": "app-services-digest_scheduler_0", "file": "app/services/digest_scheduler.py",
+                 "section": "module header", "score": 0.6611}
+              ],
+              "top_k": 5,
+              "embedding_model": "gemini-embedding-001",
+              "retrieval_seconds": 0.412,
+              "llm_seconds": 2.1
+            }
+        """.trimIndent()
+
+        val answer = gson.fromJson(json, AgentRagResponseDto::class.java).toDomain()
+
+        assertTrue(answer.ragEnabled)
+        assertEquals(2, answer.chunks.size)
+        assertEquals("README.md", answer.chunks.first().file)
+        assertEquals("Configuration", answer.chunks.first().section)
+        assertEquals(0.7123, answer.chunks.first().score, 0.0001)
+        assertEquals(2, answer.sources.size)
+        assertEquals(5, answer.topK)
+        assertEquals("gemini-embedding-001", answer.embeddingModel)
+    }
+
+    @Test
+    fun `an answer given without retrieval carries no sources`() {
+        val json = """
+            {"answer": "From memory.", "rag_enabled": false, "sources": [], "retrieved_chunks": []}
+        """.trimIndent()
+
+        val answer = gson.fromJson(json, AgentRagResponseDto::class.java).toDomain()
+
+        assertFalse(answer.ragEnabled)
+        assertTrue(answer.sources.isEmpty())
+        assertTrue(answer.chunks.isEmpty())
+        assertEquals("From memory.", answer.answer)
     }
 }

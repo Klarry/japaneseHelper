@@ -11,5 +11,8 @@ data class AgentMessage(
     val toolCalls: List<AgentToolCall> = emptyList(),
     /** The chain behind this answer, when it was one. Like the tool calls, it
      * lives only for this session. */
-    val pipeline: AgentPipeline? = null
+    val pipeline: AgentPipeline? = null,
+    /** Where this answer came from, when it was answered from the document
+     * index rather than from the model alone (Day 22). */
+    val rag: AgentRagInfo? = null
 )

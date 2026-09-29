@@ -73,6 +73,10 @@ data class AiAgentScreenState(
     /** How big the backend's document index is. Read once when the screen
      * opens: an index changes only when someone rebuilds it on the backend. */
     val documentIndex: AgentDocumentIndex? = null,
+    /** Whether the next question goes to the document index (Day 22). Off by
+     * default: the screen behaves exactly as it did until someone asks for
+     * retrieval. */
+    val ragEnabled: Boolean = false,
     /** Where the task in progress has got to. The stages and the moves
      * between them belong to the backend; this is what it reports. */
     val taskState: AgentTaskState? = null,

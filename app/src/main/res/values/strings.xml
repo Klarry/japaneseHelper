@@ -74,6 +74,13 @@
     <string name="ai_agent_index_structural">Structural chunks: %1$d</string>
     <string name="ai_agent_index_dimension">Embedding dimension: %1$d</string>
     <string name="ai_agent_index_model">Embeddings: %1$s</string>
+    <string name="ai_agent_rag_label">RAG:</string>
+    <string name="ai_agent_rag_off">OFF</string>
+    <string name="ai_agent_rag_on">ON</string>
+    <string name="ai_agent_rag_sources_title">Sources</string>
+    <string name="ai_agent_rag_source_row">- %1$s</string>
+    <string name="ai_agent_rag_no_sources">No sources returned</string>
+    <string name="ai_agent_rag_chunks">Retrieved chunks: %1$d</string>
     <string name="ai_agent_tool_call_failed">%1$s · failed</string>
     <string name="ai_agent_pipeline_title">MCP Orchestration</string>
     <string name="ai_agent_pipeline_search">Search</string>

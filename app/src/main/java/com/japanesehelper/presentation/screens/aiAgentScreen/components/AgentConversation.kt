@@ -123,7 +123,8 @@ private fun MessageList(messages: List<AgentMessage>, modifier: Modifier = Modif
  *
  * When those calls were the backend's chain rather than a single lookup, what
  * it produced is shown underneath the answer: the stages, the words, the
- * summary and the file it was saved to.
+ * summary and the file it was saved to. An answer retrieved from the document
+ * index instead carries the documents it was built on.
  */
 @Composable
 private fun AgentAnswer(message: AgentMessage) {
@@ -131,6 +132,7 @@ private fun AgentAnswer(message: AgentMessage) {
         message.toolCalls.forEach { call -> ToolCallStatus(call) }
         MarkdownText(markdown = message.content)
         message.pipeline?.let { pipeline -> PipelineStatus(pipeline) }
+        message.rag?.let { rag -> RagSources(rag) }
     }
 }
 

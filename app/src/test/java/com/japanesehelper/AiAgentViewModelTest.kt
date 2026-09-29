@@ -16,6 +16,8 @@ import com.japanesehelper.domain.model.AgentPipelineStage
 import com.japanesehelper.domain.model.AgentPipelineStep
 import com.japanesehelper.domain.model.AgentPipelineWord
 import com.japanesehelper.domain.model.AgentProfilePreset
+import com.japanesehelper.domain.model.AgentRagAnswer
+import com.japanesehelper.domain.model.AgentRagChunk
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
 import com.japanesehelper.domain.model.AgentTaskRefusal
@@ -131,6 +133,8 @@ class AiAgentViewModelTest {
         override suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile = profile
         override suspend fun getDigest(): AgentDigest = AgentDigest()
         override suspend fun getDocumentIndex(): AgentDocumentIndex = AgentDocumentIndex()
+        override suspend fun askWithRag(question: String, useRag: Boolean, topK: Int): AgentRagAnswer =
+            AgentRagAnswer(answer = "from the documents", ragEnabled = useRag)
         override suspend fun getTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun clearTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun requestTaskTransition(stage: AgentTaskStage): AgentTaskState =
@@ -1181,6 +1185,91 @@ class AiAgentViewModelTest {
         val answer = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
         assertFalse(answer.toolCalls.single().ok)
         assertNull(viewModel.state.value.sendError)
+    }
+
+    // --- the RAG switch (Day 22) -------------------------------------------
+
+    @Test
+    fun `with RAG off the question goes to the agent exactly as before`() {
+        given()
+        whenever(repository.chat(any(), any())).thenReturn(reply("обычный ответ"))
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Что означает 学習?")
+
+        viewModel.send()
+
+        verify(repository, times(1)).chat(any(), any())
+        verify(repository, never()).askWithRag(any(), any(), any())
+        val answer = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
+        assertEquals("обычный ответ", answer.content)
+        assertNull(answer.rag)
+    }
+
+    @Test
+    fun `with RAG on the question goes to the document index and comes back with sources`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(
+            AgentRagAnswer(
+                answer = "According to README.md, the scheduler ticks once a second.",
+                ragEnabled = true,
+                sources = listOf("README.md / Configuration", "app/services/digest_scheduler.py"),
+                chunks = listOf(
+                    AgentRagChunk("README_3", "README.md", "Configuration", 0.71),
+                    AgentRagChunk("app-services-digest_scheduler_0", "app/services/digest_scheduler.py", "module header", 0.66)
+                ),
+                topK = 5
+            )
+        )
+        val viewModel = createViewModel()
+        viewModel.onRagToggled(true)
+        viewModel.onMessageChanged("How often does the scheduler tick?")
+
+        viewModel.send()
+
+        verify(repository, times(1)).askWithRag("How often does the scheduler tick?", true, 5)
+        verify(repository, never()).chat(any(), any())
+        val answer = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
+        assertEquals(2, answer.rag?.chunkCount)
+        assertEquals(listOf("README.md / Configuration", "app/services/digest_scheduler.py"), answer.rag?.sources)
+        assertEquals("", viewModel.state.value.message)
+    }
+
+    @Test
+    fun `the same question can be asked in both modes`() {
+        given()
+        whenever(repository.chat(any(), any())).thenReturn(reply("без источников"))
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(
+            AgentRagAnswer(answer = "с источниками", ragEnabled = true, sources = listOf("README.md"))
+        )
+        val viewModel = createViewModel()
+        val question = "What is the architecture of the project?"
+
+        viewModel.onMessageChanged(question)
+        viewModel.send()
+        viewModel.onRagToggled(true)
+        viewModel.onMessageChanged(question)
+        viewModel.send()
+
+        val messages = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages
+        val answers = messages.filter { it.role == AgentMessageRole.ASSISTANT }
+        assertEquals(2, answers.size)
+        assertNull(answers[0].rag)
+        assertEquals(listOf("README.md"), answers[1].rag?.sources)
+    }
+
+    @Test
+    fun `a failing RAG request shows an error and keeps the conversation`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenThrow(RuntimeException("503"))
+        val viewModel = createViewModel()
+        viewModel.onRagToggled(true)
+        viewModel.onMessageChanged("anything")
+
+        viewModel.send()
+
+        assertNotNull(viewModel.state.value.sendError)
+        assertFalse(viewModel.state.value.isSending)
+        assertTrue(viewModel.state.value.history is AgentHistoryUiState.Loaded)
     }
 
     // --- the document index readout (Day 21) -------------------------------

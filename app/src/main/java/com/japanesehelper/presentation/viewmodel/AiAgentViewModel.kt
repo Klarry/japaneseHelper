@@ -8,6 +8,7 @@ import com.japanesehelper.domain.model.AgentMemoryLayer
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentProfilePreset
+import com.japanesehelper.domain.model.AgentRagInfo
 import com.japanesehelper.domain.model.AgentTaskStage
 import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentTaskTransitionRefused
@@ -45,6 +46,10 @@ private const val DIGEST_POLL_MILLIS = 5_000L
  * itself. After anything that could change that, it reloads the context
  * rather than guessing at the new state.
  */
+/** How many chunks the backend is asked to retrieve for a question from this
+ * screen. The backend decides everything else about retrieval. */
+private const val RAG_TOP_K = 5
+
 @HiltViewModel
 class AiAgentViewModel @Inject constructor(
     private val agentRepository: AgentRepository
@@ -113,17 +118,33 @@ class AiAgentViewModel @Inject constructor(
         }
     }
 
+    /** Turn retrieval on or off for the next question. Off is the screen as
+     * it always was; on sends the question to the backend's document index
+     * instead. Nothing about retrieval happens here - this is a flag on a
+     * request. */
+    fun onRagToggled(enabled: Boolean) {
+        if (enabled == _state.value.ragEnabled) return
+
+        _state.value = _state.value.copy(ragEnabled = enabled)
+    }
+
     fun send() {
         val message = _state.value.message.trim()
 
         if (message.isEmpty()) return
         if (_state.value.isSending) return
 
-        // Read once, so a strategy switched while this request is in flight
-        // applies to the next one instead of mislabelling this one.
+        // Read once, so a strategy or a mode switched while this request is
+        // in flight applies to the next one instead of mislabelling this one.
         val strategy = _state.value.strategy
+        val useRag = _state.value.ragEnabled
 
         _state.value = _state.value.copy(isSending = true, sendError = null)
+
+        if (useRag) {
+            askTheDocuments(message)
+            return
+        }
 
         viewModelScope.launch {
             try {
@@ -469,6 +490,40 @@ class AiAgentViewModel @Inject constructor(
     fun stopWatchingPeriodicTask() {
         digestWatcher?.cancel()
         digestWatcher = null
+    }
+
+    /** The same screen, the other path: the question goes to the backend's
+     * RAG endpoint, which retrieves and answers, and the reply is appended
+     * to the same conversation with the sources it used.
+     *
+     * The conversation on the backend does not see these turns - this is a
+     * question about the project's documents, not part of the Japanese
+     * lesson - so nothing here reloads the context or the token usage. */
+    private fun askTheDocuments(message: String) {
+        viewModelScope.launch {
+            try {
+                val reply = agentRepository.askWithRag(message, useRag = true, topK = RAG_TOP_K)
+                val updatedMessages = currentMessages() +
+                    AgentMessage(role = AgentMessageRole.USER, content = message) +
+                    AgentMessage(
+                        role = AgentMessageRole.ASSISTANT,
+                        content = reply.answer,
+                        rag = AgentRagInfo(
+                            sources = reply.sources,
+                            chunkCount = reply.chunks.size,
+                            topK = reply.topK
+                        )
+                    )
+
+                _state.value = _state.value.copy(
+                    message = "",
+                    isSending = false,
+                    history = AgentHistoryUiState.Loaded(updatedMessages)
+                )
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                _state.value = _state.value.copy(isSending = false, sendError = e.toErrorMessage())
+            }
+        }
     }
 
     /** Read how big the backend's document index is. Once per screen: it

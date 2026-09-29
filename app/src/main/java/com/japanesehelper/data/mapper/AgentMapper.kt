@@ -9,6 +9,8 @@ import com.japanesehelper.data.remote.dto.AgentToolCallDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentDigestDto
 import com.japanesehelper.data.remote.dto.AgentDocumentIndexDto
+import com.japanesehelper.data.remote.dto.AgentRagChunkDto
+import com.japanesehelper.data.remote.dto.AgentRagResponseDto
 import com.japanesehelper.data.remote.dto.AgentHistoryMessageDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentInvariantDto
@@ -36,6 +38,8 @@ import com.japanesehelper.domain.model.AgentPipeline
 import com.japanesehelper.domain.model.AgentPipelineStage
 import com.japanesehelper.domain.model.AgentPipelineStep
 import com.japanesehelper.domain.model.AgentPipelineWord
+import com.japanesehelper.domain.model.AgentRagAnswer
+import com.japanesehelper.domain.model.AgentRagChunk
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
 import com.japanesehelper.domain.model.AgentTaskRefusal
@@ -267,5 +271,33 @@ fun AgentDocumentIndexDto.toDomain(): AgentDocumentIndex {
         embeddingModel = embeddingModel.orEmpty(),
         embeddingDimension = embeddingDimension ?: 0,
         builtAt = builtAt.orEmpty()
+    )
+}
+
+
+/** POST /agent/rag -> what the screen shows. Sources and chunks arrive empty
+ * when retrieval was off, and are kept exactly as the backend sent them. */
+fun AgentRagResponseDto.toDomain(): AgentRagAnswer {
+    return AgentRagAnswer(
+        answer = answer.orEmpty(),
+        ragEnabled = ragEnabled ?: false,
+        sources = sources.orEmpty(),
+        chunks = retrievedChunks.orEmpty().mapNotNull { it.toDomain() },
+        topK = topK ?: 0,
+        embeddingModel = embeddingModel.orEmpty(),
+        retrievalSeconds = retrievalSeconds ?: 0.0,
+        llmSeconds = llmSeconds ?: 0.0
+    )
+}
+
+/** A chunk without a file says nothing that can be shown, so it is dropped. */
+fun AgentRagChunkDto.toDomain(): AgentRagChunk? {
+    val name = file?.takeIf { it.isNotBlank() } ?: return null
+
+    return AgentRagChunk(
+        chunkId = chunkId.orEmpty(),
+        file = name,
+        section = section.orEmpty(),
+        score = score ?: 0.0
     )
 }
