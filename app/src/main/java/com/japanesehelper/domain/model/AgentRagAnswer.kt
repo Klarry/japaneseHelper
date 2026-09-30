@@ -6,18 +6,21 @@ package com.japanesehelper.domain.model
  * The names are the backend's own, and [wire] is what goes on the request -
  * the screen does not invent modes, it names one the backend already has.
  *
- * OFF is the odd one out on purpose: it does not call the RAG endpoint at
- * all, it leaves the screen doing what it has always done - the Japanese
- * learning agent, with its tools, its memory and its history. That is the
- * honest "no retrieval" baseline for this screen, and it keeps the agent
- * reachable instead of replacing it.
+ * All three go to the same endpoint, which is the point: OFF asks the same
+ * model the same question with nothing in front of it, BASELINE retrieves
+ * top-k first, ENHANCED puts the second stage in between. One thing changes
+ * between them, so the three answers can be compared.
+ *
+ * Where the question goes at all - here or to the learning agent - is the
+ * screen's decision, not this enum's: see AskTarget.
  */
 enum class RagMode(val wire: String) {
     OFF("off"),
     BASELINE("baseline"),
     ENHANCED("enhanced");
 
-    /** Whether a question in this mode goes to the document index. */
+    /** Whether anything is retrieved in this mode. Sent as ``use_rag`` so a
+     * backend that predates Day 23 reads the request the same way. */
     val usesIndex: Boolean get() = this != OFF
 
     companion object {

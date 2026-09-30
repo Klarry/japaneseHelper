@@ -16,6 +16,7 @@ import com.japanesehelper.domain.model.AgentTaskTransitionRefused
 import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.repository.AgentRepository
 import com.japanesehelper.presentation.viewmodel.screendata.AgentHistoryUiState
+import com.japanesehelper.presentation.viewmodel.screendata.AskTarget
 import com.japanesehelper.presentation.viewmodel.screendata.AiAgentScreenState
 import com.japanesehelper.presentation.viewmodel.screendata.InvariantEditorState
 import com.japanesehelper.presentation.viewmodel.screendata.NewBranchState
@@ -121,16 +122,15 @@ class AiAgentViewModel @Inject constructor(
         }
     }
 
-    /** Which pipeline the next question goes through. OFF is the screen as
-     * it always was - the learning agent, untouched; BASELINE and ENHANCED
-     * send the question to the backend's document index instead, and the
-     * backend decides what each of them means. Nothing about retrieval,
-     * rewriting, filtering or reranking happens here: this names a mode on
-     * a request. */
-    fun onRagModeChanged(mode: RagMode) {
-        if (mode == _state.value.ragMode) return
+    /** Where the next question goes. The agent is the screen as it always
+     * was; the three RAG targets send the question to the backend's document
+     * index instead, and the backend decides what each of its modes means.
+     * Nothing about retrieval, rewriting, filtering or reranking happens
+     * here: this names a mode on a request. */
+    fun onAskTargetChanged(target: AskTarget) {
+        if (target == _state.value.askTarget) return
 
-        _state.value = _state.value.copy(ragMode = mode)
+        _state.value = _state.value.copy(askTarget = target)
     }
 
     fun send() {
@@ -142,11 +142,11 @@ class AiAgentViewModel @Inject constructor(
         // Read once, so a strategy or a mode switched while this request is
         // in flight applies to the next one instead of mislabelling this one.
         val strategy = _state.value.strategy
-        val ragMode = _state.value.ragMode
+        val ragMode = _state.value.askTarget.ragMode
 
         _state.value = _state.value.copy(isSending = true, sendError = null)
 
-        if (ragMode.usesIndex) {
+        if (ragMode != null) {
             askTheDocuments(message, ragMode)
             return
         }
@@ -498,8 +498,9 @@ class AiAgentViewModel @Inject constructor(
     }
 
     /** The same screen, the other path: the question goes to the backend's
-     * RAG endpoint, which retrieves and answers, and the reply is appended
-     * to the same conversation with the sources it used.
+     * RAG endpoint in one of its three modes - with no retrieval at all, with
+     * the Day 22 search, or through the second stage - and the reply is
+     * appended to the same conversation with whatever it was built on.
      *
      * The conversation on the backend does not see these turns - this is a
      * question about the project's documents, not part of the Japanese

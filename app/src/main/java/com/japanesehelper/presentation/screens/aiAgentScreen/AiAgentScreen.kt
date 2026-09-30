@@ -42,7 +42,7 @@ import com.japanesehelper.presentation.screens.aiAgentScreen.components.EditProf
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.InvariantsSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.MemoryLayersSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.PeriodicTaskSection
-import com.japanesehelper.presentation.screens.aiAgentScreen.components.RagModeSwitch
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.AskTargetSwitch
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TaskStateSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TokenUsageSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.UserProfileSection
@@ -145,9 +145,9 @@ fun AiAgentScreen(
                     .padding(horizontal = padding.default, vertical = padding.half),
                 verticalArrangement = Arrangement.spacedBy(padding.half)
             ) {
-                RagModeSwitch(
-                    mode = state.ragMode,
-                    onChanged = viewModel::onRagModeChanged
+                AskTargetSwitch(
+                    target = state.askTarget,
+                    onChanged = viewModel::onAskTargetChanged
                 )
 
                 OutlinedTextField(

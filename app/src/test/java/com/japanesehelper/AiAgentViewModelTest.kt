@@ -20,6 +20,7 @@ import com.japanesehelper.domain.model.AgentRagAnswer
 import com.japanesehelper.domain.model.AgentRagChunk
 import com.japanesehelper.domain.model.AgentRagDebug
 import com.japanesehelper.domain.model.RagMode
+import com.japanesehelper.presentation.viewmodel.screendata.AskTarget
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
 import com.japanesehelper.domain.model.AgentTaskRefusal
@@ -137,7 +138,7 @@ class AiAgentViewModelTest {
         override suspend fun getDigest(): AgentDigest = AgentDigest()
         override suspend fun getDocumentIndex(): AgentDocumentIndex = AgentDocumentIndex()
         override suspend fun askWithRag(question: String, mode: RagMode, topK: Int): AgentRagAnswer =
-            AgentRagAnswer(answer = "from the documents", ragEnabled = mode.usesIndex, mode = mode)
+            AgentRagAnswer(answer = "from the documents", ragEnabled = mode != RagMode.OFF, mode = mode)
         override suspend fun getTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun clearTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun requestTaskTransition(stage: AgentTaskStage): AgentTaskState =
@@ -1224,7 +1225,7 @@ class AiAgentViewModelTest {
             )
         )
         val viewModel = createViewModel()
-        viewModel.onRagModeChanged(RagMode.BASELINE)
+        viewModel.onAskTargetChanged(AskTarget.RAG_BASELINE)
         viewModel.onMessageChanged("How often does the scheduler tick?")
 
         viewModel.send()
@@ -1249,7 +1250,7 @@ class AiAgentViewModelTest {
 
         viewModel.onMessageChanged(question)
         viewModel.send()
-        viewModel.onRagModeChanged(RagMode.BASELINE)
+        viewModel.onAskTargetChanged(AskTarget.RAG_BASELINE)
         viewModel.onMessageChanged(question)
         viewModel.send()
 
@@ -1265,7 +1266,7 @@ class AiAgentViewModelTest {
         given()
         whenever(repository.askWithRag(any(), any(), any())).thenThrow(RuntimeException("503"))
         val viewModel = createViewModel()
-        viewModel.onRagModeChanged(RagMode.BASELINE)
+        viewModel.onAskTargetChanged(AskTarget.RAG_BASELINE)
         viewModel.onMessageChanged("anything")
 
         viewModel.send()
@@ -1278,12 +1279,48 @@ class AiAgentViewModelTest {
     // --- the three modes (Day 23) ------------------------------------------
 
     @Test
-    fun `the screen starts with retrieval off so the agent behaves as it always has`() {
+    fun `the screen starts on the agent so it behaves as it always has`() {
         given()
         val viewModel = createViewModel()
 
-        assertEquals(RagMode.OFF, viewModel.state.value.ragMode)
-        assertFalse(viewModel.state.value.ragMode.usesIndex)
+        assertEquals(AskTarget.AGENT, viewModel.state.value.askTarget)
+        assertNull(viewModel.state.value.askTarget.ragMode)
+    }
+
+    @Test
+    fun `RAG OFF asks the index endpoint with retrieval switched off`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(
+            AgentRagAnswer(answer = "From the model alone.", ragEnabled = false, mode = RagMode.OFF)
+        )
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_OFF)
+        viewModel.onMessageChanged("How often does the scheduler tick?")
+
+        viewModel.send()
+
+        verify(repository, times(1)).askWithRag("How often does the scheduler tick?", RagMode.OFF, 5)
+        verify(repository, never()).chat(any(), any())
+        val rag = lastAnswer(viewModel).rag
+        assertEquals(RagMode.OFF, rag?.mode)
+        assertTrue(rag?.sources.isNullOrEmpty())
+        assertNull(rag?.debug)
+    }
+
+    @Test
+    fun `the agent keeps its own path and its tools`() {
+        given()
+        whenever(repository.chat(any(), any())).thenReturn(reply("обычный ответ"))
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
+        viewModel.onAskTargetChanged(AskTarget.AGENT)
+        viewModel.onMessageChanged("Что означает 学習?")
+
+        viewModel.send()
+
+        verify(repository, times(1)).chat(any(), any())
+        verify(repository, never()).askWithRag(any(), any(), any())
+        assertNull(lastAnswer(viewModel).rag)
     }
 
     @Test
@@ -1291,7 +1328,7 @@ class AiAgentViewModelTest {
         given()
         whenever(repository.askWithRag(any(), any(), any())).thenReturn(enhancedAnswer())
         val viewModel = createViewModel()
-        viewModel.onRagModeChanged(RagMode.ENHANCED)
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
         viewModel.onMessageChanged("Как работает MCP в проекте?")
 
         viewModel.send()
@@ -1305,7 +1342,7 @@ class AiAgentViewModelTest {
         given()
         whenever(repository.askWithRag(any(), any(), any())).thenReturn(enhancedAnswer())
         val viewModel = createViewModel()
-        viewModel.onRagModeChanged(RagMode.ENHANCED)
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
         viewModel.onMessageChanged("Как работает MCP в проекте?")
 
         viewModel.send()
@@ -1321,7 +1358,7 @@ class AiAgentViewModelTest {
         given()
         whenever(repository.askWithRag(any(), any(), any())).thenReturn(enhancedAnswer())
         val viewModel = createViewModel()
-        viewModel.onRagModeChanged(RagMode.ENHANCED)
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
         viewModel.onMessageChanged("Как работает MCP в проекте?")
 
         viewModel.send()
@@ -1346,7 +1383,7 @@ class AiAgentViewModelTest {
             )
         )
         val viewModel = createViewModel()
-        viewModel.onRagModeChanged(RagMode.BASELINE)
+        viewModel.onAskTargetChanged(AskTarget.RAG_BASELINE)
         viewModel.onMessageChanged("anything")
 
         viewModel.send()
@@ -1378,7 +1415,7 @@ class AiAgentViewModelTest {
             )
         )
         val viewModel = createViewModel()
-        viewModel.onRagModeChanged(RagMode.ENHANCED)
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
         viewModel.onMessageChanged("Which relational database stores the conversations?")
 
         viewModel.send()
@@ -1390,9 +1427,11 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `all three modes can be used one after another in the same conversation`() {
+    fun `all three RAG modes can be used one after another on the same question`() {
         given()
-        whenever(repository.chat(any(), any())).thenReturn(reply("обычный ответ"))
+        whenever(repository.askWithRag(any(), eq(RagMode.OFF), any())).thenReturn(
+            AgentRagAnswer(answer = "from the model alone", ragEnabled = false, mode = RagMode.OFF)
+        )
         whenever(repository.askWithRag(any(), eq(RagMode.BASELINE), any())).thenReturn(
             AgentRagAnswer(answer = "baseline", ragEnabled = true, mode = RagMode.BASELINE, sources = listOf("README.md"))
         )
@@ -1400,37 +1439,39 @@ class AiAgentViewModelTest {
         val viewModel = createViewModel()
         val question = "How does the project work?"
 
+        viewModel.onAskTargetChanged(AskTarget.RAG_OFF)
         viewModel.onMessageChanged(question)
         viewModel.send()
-        viewModel.onRagModeChanged(RagMode.BASELINE)
+        viewModel.onAskTargetChanged(AskTarget.RAG_BASELINE)
         viewModel.onMessageChanged(question)
         viewModel.send()
-        viewModel.onRagModeChanged(RagMode.ENHANCED)
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
         viewModel.onMessageChanged(question)
         viewModel.send()
 
         val answers = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages
             .filter { it.role == AgentMessageRole.ASSISTANT }
         assertEquals(3, answers.size)
-        assertNull(answers[0].rag)
+        assertEquals(RagMode.OFF, answers[0].rag?.mode)
+        assertTrue(answers[0].rag?.sources.isNullOrEmpty())
         assertEquals(RagMode.BASELINE, answers[1].rag?.mode)
         assertNull(answers[1].rag?.debug)
         assertEquals(RagMode.ENHANCED, answers[2].rag?.mode)
         assertEquals(3, answers[2].rag?.debug?.finalCount)
-        verify(repository, times(1)).chat(any(), any())
+        verify(repository, never()).chat(any(), any())
     }
 
     @Test
-    fun `switching mode does not send anything by itself`() {
+    fun `switching target does not send anything by itself`() {
         given()
         val viewModel = createViewModel()
 
-        viewModel.onRagModeChanged(RagMode.ENHANCED)
-        viewModel.onRagModeChanged(RagMode.OFF)
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
+        viewModel.onAskTargetChanged(AskTarget.RAG_OFF)
 
         verify(repository, never()).askWithRag(any(), any(), any())
         verify(repository, never()).chat(any(), any())
-        assertEquals(RagMode.OFF, viewModel.state.value.ragMode)
+        assertEquals(AskTarget.RAG_OFF, viewModel.state.value.askTarget)
     }
 
     private fun enhancedAnswer() = AgentRagAnswer(
