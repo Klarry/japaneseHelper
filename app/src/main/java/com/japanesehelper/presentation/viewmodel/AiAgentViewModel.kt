@@ -9,6 +9,7 @@ import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentProfilePreset
 import com.japanesehelper.domain.model.AgentRagInfo
+import com.japanesehelper.domain.model.RagMode
 import com.japanesehelper.domain.model.AgentTaskStage
 import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentTaskTransitionRefused
@@ -46,8 +47,10 @@ private const val DIGEST_POLL_MILLIS = 5_000L
  * itself. After anything that could change that, it reloads the context
  * rather than guessing at the new state.
  */
-/** How many chunks the backend is asked to retrieve for a question from this
- * screen. The backend decides everything else about retrieval. */
+/** How many chunks the backend is asked to retrieve for a baseline question
+ * from this screen. The enhanced pipeline ignores it and uses its own
+ * configured top-k values; the backend decides everything else about
+ * retrieval either way. */
 private const val RAG_TOP_K = 5
 
 @HiltViewModel
@@ -118,14 +121,16 @@ class AiAgentViewModel @Inject constructor(
         }
     }
 
-    /** Turn retrieval on or off for the next question. Off is the screen as
-     * it always was; on sends the question to the backend's document index
-     * instead. Nothing about retrieval happens here - this is a flag on a
-     * request. */
-    fun onRagToggled(enabled: Boolean) {
-        if (enabled == _state.value.ragEnabled) return
+    /** Which pipeline the next question goes through. OFF is the screen as
+     * it always was - the learning agent, untouched; BASELINE and ENHANCED
+     * send the question to the backend's document index instead, and the
+     * backend decides what each of them means. Nothing about retrieval,
+     * rewriting, filtering or reranking happens here: this names a mode on
+     * a request. */
+    fun onRagModeChanged(mode: RagMode) {
+        if (mode == _state.value.ragMode) return
 
-        _state.value = _state.value.copy(ragEnabled = enabled)
+        _state.value = _state.value.copy(ragMode = mode)
     }
 
     fun send() {
@@ -137,12 +142,12 @@ class AiAgentViewModel @Inject constructor(
         // Read once, so a strategy or a mode switched while this request is
         // in flight applies to the next one instead of mislabelling this one.
         val strategy = _state.value.strategy
-        val useRag = _state.value.ragEnabled
+        val ragMode = _state.value.ragMode
 
         _state.value = _state.value.copy(isSending = true, sendError = null)
 
-        if (useRag) {
-            askTheDocuments(message)
+        if (ragMode.usesIndex) {
+            askTheDocuments(message, ragMode)
             return
         }
 
@@ -499,10 +504,10 @@ class AiAgentViewModel @Inject constructor(
      * The conversation on the backend does not see these turns - this is a
      * question about the project's documents, not part of the Japanese
      * lesson - so nothing here reloads the context or the token usage. */
-    private fun askTheDocuments(message: String) {
+    private fun askTheDocuments(message: String, mode: RagMode) {
         viewModelScope.launch {
             try {
-                val reply = agentRepository.askWithRag(message, useRag = true, topK = RAG_TOP_K)
+                val reply = agentRepository.askWithRag(message, mode = mode, topK = RAG_TOP_K)
                 val updatedMessages = currentMessages() +
                     AgentMessage(role = AgentMessageRole.USER, content = message) +
                     AgentMessage(
@@ -511,7 +516,12 @@ class AiAgentViewModel @Inject constructor(
                         rag = AgentRagInfo(
                             sources = reply.sources,
                             chunkCount = reply.chunks.size,
-                            topK = reply.topK
+                            topK = reply.topK,
+                            // The mode the backend says it answered in, not
+                            // the one that was asked for: they agree, and if
+                            // they ever did not, the answer decides.
+                            mode = reply.mode,
+                            debug = reply.debug
                         )
                     )
 

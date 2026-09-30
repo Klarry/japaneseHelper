@@ -11,18 +11,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.japanesehelper.R
+import com.japanesehelper.domain.model.RagMode
 import com.japanesehelper.presentation.theme.LocalAppPadding
 
 /**
  * Where the next question goes: to the agent as before, or to the backend's
- * document index.
+ * document index - and if to the index, through which pipeline.
  *
- * Two chips and nothing else. The device does no retrieval and knows nothing
- * about the index - this sets one flag on one request, and the backend does
- * the rest.
+ * Three chips and nothing else. The device does no retrieval, no rewriting,
+ * no filtering and no reranking, and knows nothing about the index: this
+ * names one mode on one request, and the backend does the rest.
  */
 @Composable
-fun RagModeSwitch(enabled: Boolean, onChanged: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+fun RagModeSwitch(
+    mode: RagMode,
+    onChanged: (RagMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(LocalAppPadding.current.half),
@@ -34,16 +39,20 @@ fun RagModeSwitch(enabled: Boolean, onChanged: (Boolean) -> Unit, modifier: Modi
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        FilterChip(
-            selected = !enabled,
-            onClick = { onChanged(false) },
-            label = { Text(stringResource(R.string.ai_agent_rag_off)) }
-        )
-
-        FilterChip(
-            selected = enabled,
-            onClick = { onChanged(true) },
-            label = { Text(stringResource(R.string.ai_agent_rag_on)) }
-        )
+        RagMode.entries.forEach { option ->
+            FilterChip(
+                selected = mode == option,
+                onClick = { onChanged(option) },
+                label = { Text(stringResource(option.labelRes())) }
+            )
+        }
     }
+}
+
+/** The chip's caption. Kept next to the switch rather than on the enum: the
+ * enum is a domain type and has no business knowing about resources. */
+private fun RagMode.labelRes(): Int = when (this) {
+    RagMode.OFF -> R.string.ai_agent_rag_off
+    RagMode.BASELINE -> R.string.ai_agent_rag_baseline
+    RagMode.ENHANCED -> R.string.ai_agent_rag_enhanced
 }

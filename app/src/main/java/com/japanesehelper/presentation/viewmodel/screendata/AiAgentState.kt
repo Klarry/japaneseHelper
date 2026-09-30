@@ -10,6 +10,7 @@ import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentTaskRefusal
 import com.japanesehelper.domain.model.AgentTaskState
+import com.japanesehelper.domain.model.RagMode
 import com.japanesehelper.domain.model.AgentTokenUsage
 import com.japanesehelper.domain.model.AgentUserProfile
 
@@ -73,10 +74,11 @@ data class AiAgentScreenState(
     /** How big the backend's document index is. Read once when the screen
      * opens: an index changes only when someone rebuilds it on the backend. */
     val documentIndex: AgentDocumentIndex? = null,
-    /** Whether the next question goes to the document index (Day 22). Off by
-     * default: the screen behaves exactly as it did until someone asks for
-     * retrieval. */
-    val ragEnabled: Boolean = false,
+    /** Which pipeline the next question goes through (Days 22-23). OFF by
+     * default, and OFF means the screen behaves exactly as it always has -
+     * the learning agent, not the document index. BASELINE is the Day 22
+     * search; ENHANCED adds the backend's rewrite, filter and reranker. */
+    val ragMode: RagMode = RagMode.OFF,
     /** Where the task in progress has got to. The stages and the moves
      * between them belong to the backend; this is what it reports. */
     val taskState: AgentTaskState? = null,

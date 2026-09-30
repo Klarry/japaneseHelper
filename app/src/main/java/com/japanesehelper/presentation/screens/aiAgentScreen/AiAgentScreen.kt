@@ -146,8 +146,8 @@ fun AiAgentScreen(
                 verticalArrangement = Arrangement.spacedBy(padding.half)
             ) {
                 RagModeSwitch(
-                    enabled = state.ragEnabled,
-                    onChanged = viewModel::onRagToggled
+                    mode = state.ragMode,
+                    onChanged = viewModel::onRagModeChanged
                 )
 
                 OutlinedTextField(

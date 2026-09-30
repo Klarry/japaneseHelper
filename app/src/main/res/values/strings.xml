@@ -81,6 +81,16 @@
     <string name="ai_agent_rag_source_row">- %1$s</string>
     <string name="ai_agent_rag_no_sources">No sources returned</string>
     <string name="ai_agent_rag_chunks">Retrieved chunks: %1$d</string>
+    <string name="ai_agent_rag_baseline">BASELINE</string>
+    <string name="ai_agent_rag_enhanced">ENHANCED</string>
+    <string name="ai_agent_rag_mode_off">Mode: no retrieval</string>
+    <string name="ai_agent_rag_mode_baseline">Mode: Baseline RAG</string>
+    <string name="ai_agent_rag_mode_enhanced">Mode: Enhanced RAG</string>
+    <string name="ai_agent_rag_original_query">Original query: %1$s</string>
+    <string name="ai_agent_rag_rewritten_query">Rewritten query: %1$s</string>
+    <string name="ai_agent_rag_not_rewritten">Rewritten query: (unchanged)</string>
+    <string name="ai_agent_rag_funnel">Retrieved: %1$d  ·  After filtering: %2$d  ·  Final chunks: %3$d</string>
+    <string name="ai_agent_rag_nothing_relevant">Nothing above %1$.2f - the index has no answer</string>
     <string name="ai_agent_tool_call_failed">%1$s · failed</string>
     <string name="ai_agent_pipeline_title">MCP Orchestration</string>
     <string name="ai_agent_pipeline_search">Search</string>

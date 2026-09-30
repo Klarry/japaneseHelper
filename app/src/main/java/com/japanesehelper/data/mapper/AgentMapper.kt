@@ -10,6 +10,7 @@ import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentDigestDto
 import com.japanesehelper.data.remote.dto.AgentDocumentIndexDto
 import com.japanesehelper.data.remote.dto.AgentRagChunkDto
+import com.japanesehelper.data.remote.dto.AgentRagDebugDto
 import com.japanesehelper.data.remote.dto.AgentRagResponseDto
 import com.japanesehelper.data.remote.dto.AgentHistoryMessageDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
@@ -40,6 +41,7 @@ import com.japanesehelper.domain.model.AgentPipelineStep
 import com.japanesehelper.domain.model.AgentPipelineWord
 import com.japanesehelper.domain.model.AgentRagAnswer
 import com.japanesehelper.domain.model.AgentRagChunk
+import com.japanesehelper.domain.model.AgentRagDebug
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
 import com.japanesehelper.domain.model.AgentTaskRefusal
@@ -48,6 +50,7 @@ import com.japanesehelper.domain.model.AgentTokenUsage
 import com.japanesehelper.domain.model.AgentToolCall
 import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.model.AgentWorkingMemory
+import com.japanesehelper.domain.model.RagMode
 
 fun AgentChatResponseDto.toDomain(): AgentReply {
     return AgentReply(
@@ -281,12 +284,14 @@ fun AgentRagResponseDto.toDomain(): AgentRagAnswer {
     return AgentRagAnswer(
         answer = answer.orEmpty(),
         ragEnabled = ragEnabled ?: false,
+        mode = RagMode.from(mode),
         sources = sources.orEmpty(),
         chunks = retrievedChunks.orEmpty().mapNotNull { it.toDomain() },
         topK = topK ?: 0,
         embeddingModel = embeddingModel.orEmpty(),
         retrievalSeconds = retrievalSeconds ?: 0.0,
-        llmSeconds = llmSeconds ?: 0.0
+        llmSeconds = llmSeconds ?: 0.0,
+        debug = debug?.toDomain()
     )
 }
 
@@ -298,6 +303,26 @@ fun AgentRagChunkDto.toDomain(): AgentRagChunk? {
         chunkId = chunkId.orEmpty(),
         file = name,
         section = section.orEmpty(),
-        score = score ?: 0.0
+        score = score ?: 0.0,
+        similarityScore = similarityScore ?: 0.0,
+        keywordScore = keywordScore ?: 0.0,
+        rerankScore = rerankScore ?: 0.0
+    )
+}
+
+/** The second stage's counts, as the backend reported them. Missing numbers
+ * become zero rather than a guess - the screen would rather show 0 than a
+ * figure nobody sent. */
+fun AgentRagDebugDto.toDomain(): AgentRagDebug {
+    return AgentRagDebug(
+        originalQuery = originalQuery.orEmpty(),
+        rewrittenQuery = rewrittenQuery.orEmpty(),
+        rewriteUsed = rewriteUsed.orEmpty(),
+        retrievalTopK = retrievalTopK ?: 0,
+        retrievedCount = retrievedCount ?: 0,
+        filteredCount = filteredCount ?: 0,
+        finalCount = finalCount ?: 0,
+        threshold = threshold ?: 0.0,
+        reordered = reordered ?: false
     )
 }

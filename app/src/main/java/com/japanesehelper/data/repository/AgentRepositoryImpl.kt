@@ -17,6 +17,7 @@ import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentDigest
 import com.japanesehelper.domain.model.AgentDocumentIndex
 import com.japanesehelper.domain.model.AgentRagAnswer
+import com.japanesehelper.domain.model.RagMode
 import com.japanesehelper.domain.model.AgentContextStrategy
 import com.japanesehelper.domain.model.AgentInvariant
 import com.japanesehelper.domain.model.AgentInvariantCategory
@@ -103,9 +104,16 @@ class AgentRepositoryImpl @Inject constructor(
         agentApi.getDocumentIndex().toDomain()
     }
 
-    override suspend fun askWithRag(question: String, useRag: Boolean, topK: Int): AgentRagAnswer =
+    override suspend fun askWithRag(question: String, mode: RagMode, topK: Int): AgentRagAnswer =
         withContext(Dispatchers.IO) {
-            agentApi.askWithRag(AgentRagRequestDto(question = question, useRag = useRag, topK = topK)).toDomain()
+            agentApi.askWithRag(
+                AgentRagRequestDto(
+                    question = question,
+                    useRag = mode.usesIndex,
+                    topK = topK,
+                    mode = mode.wire
+                )
+            ).toDomain()
         }
 
     override suspend fun getTaskState(): AgentTaskState = withContext(Dispatchers.IO) {

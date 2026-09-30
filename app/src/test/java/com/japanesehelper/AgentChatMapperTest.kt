@@ -10,6 +10,7 @@ import com.japanesehelper.data.remote.dto.AgentDocumentIndexDto
 import com.japanesehelper.data.remote.dto.AgentRagResponseDto
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentPipelineStage
+import com.japanesehelper.domain.model.RagMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -478,5 +479,87 @@ class AgentChatMapperTest {
         assertTrue(answer.sources.isEmpty())
         assertTrue(answer.chunks.isEmpty())
         assertEquals("From memory.", answer.answer)
+    }
+
+    @Test
+    fun `an enhanced answer arrives with the funnel the backend reported`() {
+        val json = """
+            {
+              "answer": "The registry offers four servers.",
+              "rag_enabled": true,
+              "mode": "enhanced",
+              "sources": ["app/services/mcp_registry.py / module header"],
+              "retrieved_chunks": [
+                {"chunk_id": "app-services-mcp_registry_0", "file": "app/services/mcp_registry.py",
+                 "section": "module header", "score": 0.7412,
+                 "similarity_score": 0.7412, "keyword_score": 0.8, "rerank_score": 0.7588}
+              ],
+              "top_k": 3,
+              "embedding_model": "gemini-embedding-001",
+              "retrieval_seconds": 0.305,
+              "llm_seconds": 5.9,
+              "debug": {
+                "original_query": "Как работает MCP в проекте?",
+                "rewritten_query": "MCP server, registry, routing, orchestration",
+                "rewrite_used": "model",
+                "retrieval_top_k": 10,
+                "retrieved_count": 10,
+                "filtered_count": 6,
+                "final_count": 3,
+                "threshold": 0.7,
+                "reordered": true
+              }
+            }
+        """.trimIndent()
+
+        val answer = gson.fromJson(json, AgentRagResponseDto::class.java).toDomain()
+
+        assertEquals(RagMode.ENHANCED, answer.mode)
+        assertEquals(10, answer.debug?.retrievedCount)
+        assertEquals(6, answer.debug?.filteredCount)
+        assertEquals(3, answer.debug?.finalCount)
+        assertEquals("MCP server, registry, routing, orchestration", answer.debug?.rewrittenQuery)
+        assertTrue(answer.debug?.wasRewritten == true)
+        assertTrue(answer.debug?.reordered == true)
+        assertEquals(0.7588, answer.chunks.first().rerankScore, 0.0001)
+        assertEquals(0.8, answer.chunks.first().keywordScore, 0.0001)
+    }
+
+    @Test
+    fun `an enhanced answer with nothing relevant has no sources and says why`() {
+        val json = """
+            {
+              "answer": "The information is not available in the indexed documents.",
+              "rag_enabled": true,
+              "mode": "enhanced",
+              "sources": [],
+              "retrieved_chunks": [],
+              "debug": {
+                "original_query": "Which relational database stores the conversations?",
+                "rewritten_query": "relational database conversations storage",
+                "retrieved_count": 10, "filtered_count": 0, "final_count": 0, "threshold": 0.7
+              }
+            }
+        """.trimIndent()
+
+        val answer = gson.fromJson(json, AgentRagResponseDto::class.java).toDomain()
+
+        assertTrue(answer.sources.isEmpty())
+        assertTrue(answer.chunks.isEmpty())
+        assertTrue(answer.debug?.nothingRelevant == true)
+    }
+
+    @Test
+    fun `a baseline answer has no funnel and a missing mode reads as baseline`() {
+        val json = """
+            {"answer": "From the index.", "rag_enabled": true, "sources": ["README.md"],
+             "retrieved_chunks": [{"chunk_id": "README_1", "file": "README.md", "score": 0.72}]}
+        """.trimIndent()
+
+        val answer = gson.fromJson(json, AgentRagResponseDto::class.java).toDomain()
+
+        assertEquals(RagMode.BASELINE, answer.mode)
+        assertNull(answer.debug)
+        assertEquals(0.0, answer.chunks.first().rerankScore, 0.0001)
     }
 }

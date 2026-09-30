@@ -4,6 +4,7 @@ import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentDigest
 import com.japanesehelper.domain.model.AgentDocumentIndex
 import com.japanesehelper.domain.model.AgentRagAnswer
+import com.japanesehelper.domain.model.RagMode
 import com.japanesehelper.domain.model.AgentContextStrategy
 import com.japanesehelper.domain.model.AgentInvariant
 import com.japanesehelper.domain.model.AgentInvariantCategory
@@ -35,7 +36,7 @@ interface AgentRepository {
     suspend fun getDocumentIndex(): AgentDocumentIndex
 
     /** Ask the document index a question, with or without retrieval. */
-    suspend fun askWithRag(question: String, useRag: Boolean, topK: Int): AgentRagAnswer
+    suspend fun askWithRag(question: String, mode: RagMode, topK: Int): AgentRagAnswer
 
     suspend fun getTaskState(): AgentTaskState
     suspend fun clearTaskState(): AgentTaskState

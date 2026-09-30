@@ -18,6 +18,8 @@ import com.japanesehelper.domain.model.AgentPipelineWord
 import com.japanesehelper.domain.model.AgentProfilePreset
 import com.japanesehelper.domain.model.AgentRagAnswer
 import com.japanesehelper.domain.model.AgentRagChunk
+import com.japanesehelper.domain.model.AgentRagDebug
+import com.japanesehelper.domain.model.RagMode
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
 import com.japanesehelper.domain.model.AgentTaskRefusal
@@ -43,6 +45,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -133,8 +136,8 @@ class AiAgentViewModelTest {
         override suspend fun updateProfile(profile: AgentUserProfile): AgentUserProfile = profile
         override suspend fun getDigest(): AgentDigest = AgentDigest()
         override suspend fun getDocumentIndex(): AgentDocumentIndex = AgentDocumentIndex()
-        override suspend fun askWithRag(question: String, useRag: Boolean, topK: Int): AgentRagAnswer =
-            AgentRagAnswer(answer = "from the documents", ragEnabled = useRag)
+        override suspend fun askWithRag(question: String, mode: RagMode, topK: Int): AgentRagAnswer =
+            AgentRagAnswer(answer = "from the documents", ragEnabled = mode.usesIndex, mode = mode)
         override suspend fun getTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun clearTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun requestTaskTransition(stage: AgentTaskStage): AgentTaskState =
@@ -1221,12 +1224,12 @@ class AiAgentViewModelTest {
             )
         )
         val viewModel = createViewModel()
-        viewModel.onRagToggled(true)
+        viewModel.onRagModeChanged(RagMode.BASELINE)
         viewModel.onMessageChanged("How often does the scheduler tick?")
 
         viewModel.send()
 
-        verify(repository, times(1)).askWithRag("How often does the scheduler tick?", true, 5)
+        verify(repository, times(1)).askWithRag("How often does the scheduler tick?", RagMode.BASELINE, 5)
         verify(repository, never()).chat(any(), any())
         val answer = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
         assertEquals(2, answer.rag?.chunkCount)
@@ -1246,7 +1249,7 @@ class AiAgentViewModelTest {
 
         viewModel.onMessageChanged(question)
         viewModel.send()
-        viewModel.onRagToggled(true)
+        viewModel.onRagModeChanged(RagMode.BASELINE)
         viewModel.onMessageChanged(question)
         viewModel.send()
 
@@ -1262,7 +1265,7 @@ class AiAgentViewModelTest {
         given()
         whenever(repository.askWithRag(any(), any(), any())).thenThrow(RuntimeException("503"))
         val viewModel = createViewModel()
-        viewModel.onRagToggled(true)
+        viewModel.onRagModeChanged(RagMode.BASELINE)
         viewModel.onMessageChanged("anything")
 
         viewModel.send()
@@ -1271,6 +1274,195 @@ class AiAgentViewModelTest {
         assertFalse(viewModel.state.value.isSending)
         assertTrue(viewModel.state.value.history is AgentHistoryUiState.Loaded)
     }
+
+    // --- the three modes (Day 23) ------------------------------------------
+
+    @Test
+    fun `the screen starts with retrieval off so the agent behaves as it always has`() {
+        given()
+        val viewModel = createViewModel()
+
+        assertEquals(RagMode.OFF, viewModel.state.value.ragMode)
+        assertFalse(viewModel.state.value.ragMode.usesIndex)
+    }
+
+    @Test
+    fun `enhanced mode asks the backend for the enhanced pipeline`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(enhancedAnswer())
+        val viewModel = createViewModel()
+        viewModel.onRagModeChanged(RagMode.ENHANCED)
+        viewModel.onMessageChanged("Как работает MCP в проекте?")
+
+        viewModel.send()
+
+        verify(repository, times(1)).askWithRag("Как работает MCP в проекте?", RagMode.ENHANCED, 5)
+        verify(repository, never()).chat(any(), any())
+    }
+
+    @Test
+    fun `the rewritten query the backend reports is kept next to the answer`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(enhancedAnswer())
+        val viewModel = createViewModel()
+        viewModel.onRagModeChanged(RagMode.ENHANCED)
+        viewModel.onMessageChanged("Как работает MCP в проекте?")
+
+        viewModel.send()
+
+        val debug = lastAnswer(viewModel).rag?.debug
+        assertEquals("Как работает MCP в проекте?", debug?.originalQuery)
+        assertEquals("MCP server, registry, routing, orchestration", debug?.rewrittenQuery)
+        assertTrue(debug?.wasRewritten == true)
+    }
+
+    @Test
+    fun `the three counts are shown exactly as the backend reported them`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(enhancedAnswer())
+        val viewModel = createViewModel()
+        viewModel.onRagModeChanged(RagMode.ENHANCED)
+        viewModel.onMessageChanged("Как работает MCP в проекте?")
+
+        viewModel.send()
+
+        val debug = lastAnswer(viewModel).rag?.debug
+        assertEquals(10, debug?.retrievedCount)
+        assertEquals(6, debug?.filteredCount)
+        assertEquals(3, debug?.finalCount)
+        assertEquals(3, lastAnswer(viewModel).rag?.chunkCount)
+    }
+
+    @Test
+    fun `the baseline answer carries no funnel because there was none`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(
+            AgentRagAnswer(
+                answer = "According to README.md...",
+                ragEnabled = true,
+                mode = RagMode.BASELINE,
+                sources = listOf("README.md"),
+                chunks = listOf(AgentRagChunk("README_3", "README.md", "Configuration", 0.71))
+            )
+        )
+        val viewModel = createViewModel()
+        viewModel.onRagModeChanged(RagMode.BASELINE)
+        viewModel.onMessageChanged("anything")
+
+        viewModel.send()
+
+        val rag = lastAnswer(viewModel).rag
+        assertEquals(RagMode.BASELINE, rag?.mode)
+        assertNull(rag?.debug)
+        assertEquals(listOf("README.md"), rag?.sources)
+    }
+
+    @Test
+    fun `a question the index cannot answer comes back with no sources and says so`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(
+            AgentRagAnswer(
+                answer = "The information is not available in the indexed documents.",
+                ragEnabled = true,
+                mode = RagMode.ENHANCED,
+                debug = AgentRagDebug(
+                    originalQuery = "Which relational database stores the conversations?",
+                    rewrittenQuery = "relational database conversations storage",
+                    rewriteUsed = "model",
+                    retrievalTopK = 10,
+                    retrievedCount = 10,
+                    filteredCount = 0,
+                    finalCount = 0,
+                    threshold = 0.7
+                )
+            )
+        )
+        val viewModel = createViewModel()
+        viewModel.onRagModeChanged(RagMode.ENHANCED)
+        viewModel.onMessageChanged("Which relational database stores the conversations?")
+
+        viewModel.send()
+
+        val rag = lastAnswer(viewModel).rag
+        assertEquals(emptyList<String>(), rag?.sources)
+        assertEquals(0, rag?.chunkCount)
+        assertTrue(rag?.debug?.nothingRelevant == true)
+    }
+
+    @Test
+    fun `all three modes can be used one after another in the same conversation`() {
+        given()
+        whenever(repository.chat(any(), any())).thenReturn(reply("обычный ответ"))
+        whenever(repository.askWithRag(any(), eq(RagMode.BASELINE), any())).thenReturn(
+            AgentRagAnswer(answer = "baseline", ragEnabled = true, mode = RagMode.BASELINE, sources = listOf("README.md"))
+        )
+        whenever(repository.askWithRag(any(), eq(RagMode.ENHANCED), any())).thenReturn(enhancedAnswer())
+        val viewModel = createViewModel()
+        val question = "How does the project work?"
+
+        viewModel.onMessageChanged(question)
+        viewModel.send()
+        viewModel.onRagModeChanged(RagMode.BASELINE)
+        viewModel.onMessageChanged(question)
+        viewModel.send()
+        viewModel.onRagModeChanged(RagMode.ENHANCED)
+        viewModel.onMessageChanged(question)
+        viewModel.send()
+
+        val answers = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages
+            .filter { it.role == AgentMessageRole.ASSISTANT }
+        assertEquals(3, answers.size)
+        assertNull(answers[0].rag)
+        assertEquals(RagMode.BASELINE, answers[1].rag?.mode)
+        assertNull(answers[1].rag?.debug)
+        assertEquals(RagMode.ENHANCED, answers[2].rag?.mode)
+        assertEquals(3, answers[2].rag?.debug?.finalCount)
+        verify(repository, times(1)).chat(any(), any())
+    }
+
+    @Test
+    fun `switching mode does not send anything by itself`() {
+        given()
+        val viewModel = createViewModel()
+
+        viewModel.onRagModeChanged(RagMode.ENHANCED)
+        viewModel.onRagModeChanged(RagMode.OFF)
+
+        verify(repository, never()).askWithRag(any(), any(), any())
+        verify(repository, never()).chat(any(), any())
+        assertEquals(RagMode.OFF, viewModel.state.value.ragMode)
+    }
+
+    private fun enhancedAnswer() = AgentRagAnswer(
+        answer = "The registry offers four servers.",
+        ragEnabled = true,
+        mode = RagMode.ENHANCED,
+        sources = listOf(
+            "app/services/mcp_registry.py / module header",
+            "README.md / The tool pipeline and its servers",
+            "app/services/mcp_client.py / module header"
+        ),
+        chunks = listOf(
+            AgentRagChunk("app-services-mcp_registry_0", "app/services/mcp_registry.py", "module header", 0.74, 0.74, 0.8, 0.758),
+            AgentRagChunk("README_9", "README.md", "The tool pipeline and its servers", 0.72, 0.72, 0.6, 0.684),
+            AgentRagChunk("app-services-mcp_client_0", "app/services/mcp_client.py", "module header", 0.71, 0.71, 0.4, 0.617)
+        ),
+        topK = 3,
+        debug = AgentRagDebug(
+            originalQuery = "Как работает MCP в проекте?",
+            rewrittenQuery = "MCP server, registry, routing, orchestration",
+            rewriteUsed = "model",
+            retrievalTopK = 10,
+            retrievedCount = 10,
+            filteredCount = 6,
+            finalCount = 3,
+            threshold = 0.7,
+            reordered = true
+        )
+    )
+
+    private fun lastAnswer(viewModel: AiAgentViewModel) =
+        (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
 
     // --- the document index readout (Day 21) -------------------------------
 
