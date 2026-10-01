@@ -11,6 +11,7 @@ import com.japanesehelper.data.remote.dto.AgentRagResponseDto
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentPipelineStage
 import com.japanesehelper.domain.model.RagMode
+import com.japanesehelper.domain.model.RagStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -561,5 +562,110 @@ class AgentChatMapperTest {
         assertEquals(RagMode.BASELINE, answer.mode)
         assertNull(answer.debug)
         assertEquals(0.0, answer.chunks.first().rerankScore, 0.0001)
+    }
+
+    @Test
+    fun `an answer arrives with its sources, its citations and its status`() {
+        val json = """
+            {
+              "answer": "Only that server's own tools go away.",
+              "rag_enabled": true,
+              "mode": "enhanced",
+              "rag_status": "answered",
+              "confidence": "high",
+              "citation_support": "supported",
+              "sources": ["app/services/mcp_registry.py / module header"],
+              "cited_sources": [
+                {"source": "project", "file": "app/services/mcp_registry.py",
+                 "section": "module header", "chunk_id": "app-services-mcp_registry_0"}
+              ],
+              "citations": [
+                {"source": "app/services/mcp_registry.py", "section": "module header",
+                 "chunk_id": "app-services-mcp_registry_0",
+                 "quote": "A server that cannot be reached takes only its own tools with it"}
+              ],
+              "retrieved_chunks": [
+                {"chunk_id": "app-services-mcp_registry_0", "file": "app/services/mcp_registry.py",
+                 "section": "module header", "score": 0.7412}
+              ],
+              "debug": {
+                "original_query": "What happens when one MCP server cannot be reached?",
+                "rewritten_query": "MCP server unreachable, discovery, routing",
+                "retrieved_count": 10, "filtered_count": 6, "final_count": 3,
+                "threshold": 0.7, "best_relevance": 0.8412, "best_similarity": 0.7412,
+                "answer_threshold": 0.7
+              }
+            }
+        """.trimIndent()
+
+        val answer = gson.fromJson(json, AgentRagResponseDto::class.java).toDomain()
+
+        assertEquals(RagStatus.ANSWERED, answer.status)
+        assertEquals("high", answer.confidence)
+        assertEquals("supported", answer.citationSupport)
+        assertEquals("app/services/mcp_registry.py", answer.citedSources.single().file)
+        assertEquals("module header", answer.citedSources.single().section)
+        assertEquals("app-services-mcp_registry_0", answer.citedSources.single().chunkId)
+        assertEquals(
+            "A server that cannot be reached takes only its own tools with it",
+            answer.citations.single().quote
+        )
+        assertEquals("app-services-mcp_registry_0", answer.citations.single().chunkId)
+        assertEquals(0.8412, answer.debug?.bestRelevance ?: 0.0, 0.0001)
+        assertEquals(0.7, answer.debug?.answerThreshold ?: 0.0, 0.0001)
+    }
+
+    @Test
+    fun `an insufficient-context answer carries no evidence at all`() {
+        val json = """
+            {
+              "answer": "I don't know based on the indexed documents. Please clarify your question.",
+              "rag_enabled": true,
+              "mode": "enhanced",
+              "rag_status": "insufficient_context",
+              "confidence": "low",
+              "citation_support": "not_checked",
+              "sources": [], "cited_sources": [], "citations": [], "retrieved_chunks": [],
+              "debug": {"retrieved_count": 10, "filtered_count": 0, "final_count": 0,
+                        "best_relevance": 0.41, "answer_threshold": 0.7}
+            }
+        """.trimIndent()
+
+        val answer = gson.fromJson(json, AgentRagResponseDto::class.java).toDomain()
+
+        assertEquals(RagStatus.INSUFFICIENT_CONTEXT, answer.status)
+        assertTrue(answer.status.refused)
+        assertTrue(answer.citedSources.isEmpty())
+        assertTrue(answer.citations.isEmpty())
+        assertTrue(answer.answer.startsWith("I don't know"))
+    }
+
+    @Test
+    fun `a citation without a quote or without a chunk is not drawn`() {
+        val json = """
+            {"answer": "a", "rag_status": "answered",
+             "cited_sources": [{"source": "project", "file": "", "section": "s", "chunk_id": "c"}],
+             "citations": [
+               {"source": "a.py", "section": "s", "chunk_id": "c_1", "quote": ""},
+               {"source": "a.py", "section": "s", "chunk_id": "", "quote": "a real quote here"},
+               {"source": "a.py", "section": "s", "chunk_id": "c_2", "quote": "a real quote here"}
+             ]}
+        """.trimIndent()
+
+        val answer = gson.fromJson(json, AgentRagResponseDto::class.java).toDomain()
+
+        assertTrue(answer.citedSources.isEmpty())
+        assertEquals(1, answer.citations.size)
+        assertEquals("c_2", answer.citations.single().chunkId)
+    }
+
+    @Test
+    fun `a missing status reads as answered rather than disappearing`() {
+        val json = """{"answer": "a", "rag_enabled": true, "sources": []}"""
+
+        val answer = gson.fromJson(json, AgentRagResponseDto::class.java).toDomain()
+
+        assertEquals(RagStatus.ANSWERED, answer.status)
+        assertTrue(answer.citations.isEmpty())
     }
 }

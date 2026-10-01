@@ -33,6 +33,59 @@ enum class RagMode(val wire: String) {
 }
 
 /**
+ * What the backend did with a question (Day 24).
+ *
+ * Reported, never decided here. [ANSWERED] means the index had enough to
+ * answer from; [INSUFFICIENT_CONTEXT] means it did not and the backend did
+ * not ask the model at all; [DISABLED] means no retrieval ran.
+ */
+enum class RagStatus(val wire: String) {
+    ANSWERED("answered"),
+    INSUFFICIENT_CONTEXT("insufficient_context"),
+    DISABLED("disabled");
+
+    /** Whether the backend refused to answer for want of evidence. There are
+     * no sources and no citations in this state, and that is the report. */
+    val refused: Boolean get() = this == INSUFFICIENT_CONTEXT
+
+    companion object {
+        /** Anything unrecognised reads as [ANSWERED]: an answer that arrived
+         * is still an answer, and the empty evidence below says the rest. */
+        fun from(wire: String?): RagStatus =
+            entries.firstOrNull { it.wire.equals(wire, ignoreCase = true) } ?: ANSWERED
+    }
+}
+
+/**
+ * One document behind an answer, as the backend names it (Day 24).
+ *
+ * Built on the backend from the chunks a validated citation points at - the
+ * device never assembles a source from anything else, so what is drawn here
+ * is what really supported the answer.
+ */
+data class AgentRagSource(
+    val source: String = "project",
+    val file: String = "",
+    val section: String = "",
+    val chunkId: String = ""
+)
+
+/**
+ * One exact fragment of one indexed document (Day 24).
+ *
+ * The backend has already checked that [quote] is a character-for-character
+ * fragment of the chunk named by [chunkId]; a quote that was not is dropped
+ * before it ever reaches the device. Nothing here re-checks it, and nothing
+ * here would be able to.
+ */
+data class AgentRagCitation(
+    val source: String = "",
+    val section: String = "",
+    val chunkId: String = "",
+    val quote: String = ""
+)
+
+/**
  * An answer from the backend's document index, and what it was built on.
  *
  * Reported, not produced. The query rewrite, the FAISS search, the
@@ -56,7 +109,16 @@ data class AgentRagAnswer(
     val llmSeconds: Double = 0.0,
     /** The second stage, when there was one. Null for OFF and BASELINE,
      * because there was no funnel to report. */
-    val debug: AgentRagDebug? = null
+    val debug: AgentRagDebug? = null,
+    /** Day 24. What the backend did, how much it trusts the result, and
+     * whether the answer's claims stand on what was quoted. */
+    val status: RagStatus = RagStatus.ANSWERED,
+    val confidence: String = "",
+    val citationSupport: String = "",
+    /** The documents behind the answer, and the exact quotes from them.
+     * Empty when nothing was cited - which is itself the report. */
+    val citedSources: List<AgentRagSource> = emptyList(),
+    val citations: List<AgentRagCitation> = emptyList()
 )
 
 /** One chunk the backend says it used: which file, which section, how close.
@@ -91,7 +153,12 @@ data class AgentRagDebug(
     val filteredCount: Int = 0,
     val finalCount: Int = 0,
     val threshold: Double = 0.0,
-    val reordered: Boolean = false
+    val reordered: Boolean = false,
+    /** Day 24: how relevant the best surviving chunk was, and the bar it had
+     * to clear before the backend would ask the model at all. */
+    val bestRelevance: Double = 0.0,
+    val bestSimilarity: Double = 0.0,
+    val answerThreshold: Double = 0.0
 ) {
     /** Whether the query that went to the search differs from the question.
      * False when the rewrite was off, or returned the question unchanged. */
@@ -110,5 +177,20 @@ data class AgentRagInfo(
     val chunkCount: Int,
     val topK: Int = 0,
     val mode: RagMode = RagMode.BASELINE,
-    val debug: AgentRagDebug? = null
-)
+    val debug: AgentRagDebug? = null,
+    val status: RagStatus = RagStatus.ANSWERED,
+    val citedSources: List<AgentRagSource> = emptyList(),
+    val citations: List<AgentRagCitation> = emptyList()
+) {
+    /** The sources to draw, structured when the backend sent them that way.
+     *
+     * The flat list is the Day 22 shape and is kept only so an answer from
+     * an older backend still names its documents. Nothing is invented from
+     * it: a flat entry becomes a source with a file name and nothing else.
+     */
+    val sourcesToShow: List<AgentRagSource>
+        get() = citedSources.ifEmpty { sources.map { AgentRagSource(file = it) } }
+
+    /** Whether there is anything at all to show under the answer. */
+    val hasEvidence: Boolean get() = sourcesToShow.isNotEmpty() || citations.isNotEmpty()
+}

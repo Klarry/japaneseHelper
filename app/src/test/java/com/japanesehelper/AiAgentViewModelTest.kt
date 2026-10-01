@@ -19,7 +19,10 @@ import com.japanesehelper.domain.model.AgentProfilePreset
 import com.japanesehelper.domain.model.AgentRagAnswer
 import com.japanesehelper.domain.model.AgentRagChunk
 import com.japanesehelper.domain.model.AgentRagDebug
+import com.japanesehelper.domain.model.AgentRagCitation
+import com.japanesehelper.domain.model.AgentRagSource
 import com.japanesehelper.domain.model.RagMode
+import com.japanesehelper.domain.model.RagStatus
 import com.japanesehelper.presentation.viewmodel.screendata.AskTarget
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
@@ -54,6 +57,10 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 class AiAgentViewModelTest {
+
+    /** An exact fragment of a real document, as the backend would send it
+     * after checking it against the chunk it came from. */
+    private val QUOTE = "A server that cannot be reached takes only its own tools with it"
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @get:Rule
@@ -1504,6 +1511,173 @@ class AiAgentViewModelTest {
 
     private fun lastAnswer(viewModel: AiAgentViewModel) =
         (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
+
+    // --- citations and anti-hallucination (Day 24) -------------------------
+
+    @Test
+    fun `a normal enhanced answer keeps its sources and its citations`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(citedAnswer())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
+        viewModel.onMessageChanged("What happens when one MCP server cannot be reached?")
+
+        viewModel.send()
+
+        val rag = lastAnswer(viewModel).rag
+        assertEquals(RagStatus.ANSWERED, rag?.status)
+        assertEquals(1, rag?.citedSources?.size)
+        assertEquals("app/services/mcp_registry.py", rag?.citedSources?.single()?.file)
+        assertEquals("module header", rag?.citedSources?.single()?.section)
+        assertEquals("app-services-mcp_registry_0", rag?.citedSources?.single()?.chunkId)
+    }
+
+    @Test
+    fun `a quote is kept next to the source it came from`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(citedAnswer())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
+        viewModel.onMessageChanged("anything")
+
+        viewModel.send()
+
+        val rag = lastAnswer(viewModel).rag
+        val citation = rag?.citations?.single()
+        assertEquals(QUOTE, citation?.quote)
+        assertEquals("app-services-mcp_registry_0", citation?.chunkId)
+        assertEquals(citation?.chunkId, rag?.citedSources?.single()?.chunkId)
+    }
+
+    @Test
+    fun `weak context keeps the backend's own sentence and no evidence`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(refusedAnswer())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
+        viewModel.onMessageChanged("Which charting library does the billing dashboard use?")
+
+        viewModel.send()
+
+        val answer = lastAnswer(viewModel)
+        assertTrue(answer.content.startsWith("I don't know based on the indexed documents"))
+        assertEquals(RagStatus.INSUFFICIENT_CONTEXT, answer.rag?.status)
+        assertTrue(answer.rag?.status?.refused == true)
+    }
+
+    @Test
+    fun `nothing is shown as a source or a citation when there was none`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(refusedAnswer())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
+        viewModel.onMessageChanged("anything")
+
+        viewModel.send()
+
+        val rag = lastAnswer(viewModel).rag
+        assertEquals(emptyList<AgentRagSource>(), rag?.citedSources)
+        assertEquals(emptyList<AgentRagCitation>(), rag?.citations)
+        assertTrue(rag?.sourcesToShow?.isEmpty() == true)
+        assertFalse(rag?.hasEvidence == true)
+    }
+
+    @Test
+    fun `an older backend that sends only flat sources still names its documents`() {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(
+            AgentRagAnswer(
+                answer = "From the index.",
+                ragEnabled = true,
+                mode = RagMode.BASELINE,
+                sources = listOf("README.md / Configuration")
+            )
+        )
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_BASELINE)
+        viewModel.onMessageChanged("anything")
+
+        viewModel.send()
+
+        val rag = lastAnswer(viewModel).rag
+        assertEquals("README.md / Configuration", rag?.sourcesToShow?.single()?.file)
+        assertEquals("", rag?.sourcesToShow?.single()?.chunkId)
+    }
+
+    @Test
+    fun `the agent answer still carries no RAG block at all`() {
+        given()
+        whenever(repository.chat(any(), any())).thenReturn(reply("обычный ответ"))
+        val viewModel = createViewModel()
+        viewModel.onMessageChanged("Что означает 学習?")
+
+        viewModel.send()
+
+        assertNull(lastAnswer(viewModel).rag)
+        verify(repository, never()).askWithRag(any(), any(), any())
+    }
+
+    private fun citedAnswer() = AgentRagAnswer(
+        answer = "Only that server's own tools go away; the others keep working.",
+        ragEnabled = true,
+        mode = RagMode.ENHANCED,
+        sources = listOf("app/services/mcp_registry.py / module header"),
+        chunks = listOf(
+            AgentRagChunk("app-services-mcp_registry_0", "app/services/mcp_registry.py", "module header", 0.74)
+        ),
+        topK = 3,
+        status = RagStatus.ANSWERED,
+        confidence = "high",
+        citationSupport = "supported",
+        citedSources = listOf(
+            AgentRagSource(
+                source = "project",
+                file = "app/services/mcp_registry.py",
+                section = "module header",
+                chunkId = "app-services-mcp_registry_0"
+            )
+        ),
+        citations = listOf(
+            AgentRagCitation(
+                source = "app/services/mcp_registry.py",
+                section = "module header",
+                chunkId = "app-services-mcp_registry_0",
+                quote = QUOTE
+            )
+        ),
+        debug = AgentRagDebug(
+            originalQuery = "What happens when one MCP server cannot be reached?",
+            rewrittenQuery = "MCP server unreachable, discovery, routing",
+            rewriteUsed = "model",
+            retrievalTopK = 10,
+            retrievedCount = 10,
+            filteredCount = 6,
+            finalCount = 3,
+            threshold = 0.7,
+            bestRelevance = 0.8412,
+            bestSimilarity = 0.7412,
+            answerThreshold = 0.7
+        )
+    )
+
+    private fun refusedAnswer() = AgentRagAnswer(
+        answer = "I don't know based on the indexed documents. Please clarify your question or provide more context.",
+        ragEnabled = true,
+        mode = RagMode.ENHANCED,
+        status = RagStatus.INSUFFICIENT_CONTEXT,
+        confidence = "low",
+        citationSupport = "not_checked",
+        debug = AgentRagDebug(
+            originalQuery = "Which charting library does the billing dashboard use?",
+            rewrittenQuery = "charting library billing dashboard",
+            retrievedCount = 10,
+            filteredCount = 0,
+            finalCount = 0,
+            threshold = 0.7,
+            bestRelevance = 0.41,
+            answerThreshold = 0.7
+        )
+    )
 
     // --- the document index readout (Day 21) -------------------------------
 

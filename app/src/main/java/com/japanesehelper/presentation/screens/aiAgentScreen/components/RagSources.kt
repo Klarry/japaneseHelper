@@ -9,23 +9,26 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import com.japanesehelper.R
 import com.japanesehelper.domain.model.AgentRagDebug
 import com.japanesehelper.domain.model.AgentRagInfo
 import com.japanesehelper.domain.model.RagMode
+import com.japanesehelper.domain.model.RagStatus
 import com.japanesehelper.presentation.theme.LocalAppPadding
 
 /**
- * Under an answer that came from the document index: which pipeline produced
- * it, what the backend actually searched for, how the funnel narrowed, and
- * which documents were used.
+ * Under an answer that went to the document index: what the backend did with
+ * the question, which documents it answered from, and the exact words it
+ * took from them.
  *
- * Everything here is reported. The counts are the backend's, the rewritten
- * query is the backend's, and the chunks' text is not here at all - the
- * backend does not even send it. What matters on the screen is that the
- * answer has sources, which they are, and how much was thrown away to get
- * to them.
+ * Everything here is reported. The counts are the backend's, the status is
+ * the backend's, and every quote was checked there against the chunk it
+ * names - a quote that was not a real fragment of its document never left
+ * the backend, so there is nothing to verify here and nothing to invent. An
+ * answer with no evidence is drawn as having no evidence, which is the one
+ * thing this block must never soften.
  */
 @Composable
 fun RagSources(rag: AgentRagInfo, modifier: Modifier = Modifier) {
@@ -38,34 +41,108 @@ fun RagSources(rag: AgentRagInfo, modifier: Modifier = Modifier) {
         Column(modifier = Modifier.padding(LocalAppPadding.current.half)) {
             ReadoutCaption(stringResource(rag.mode.titleRes()))
 
-            rag.debug?.let { debug -> RagFunnel(debug) }
-
             Text(
-                text = stringResource(R.string.ai_agent_rag_sources_title),
-                modifier = Modifier.padding(top = LocalAppPadding.current.quarter),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = stringResource(R.string.ai_agent_rag_status, stringResource(rag.status.labelRes())),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (rag.status.refused) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
 
-            if (rag.sources.isEmpty()) {
+            rag.debug?.let { debug -> RagFunnel(debug) }
+
+            RagEvidence(rag)
+        }
+    }
+}
+
+/**
+ * Sources and citations, or the plain statement that there are none.
+ *
+ * "No sources" is a result, not a missing section: a refused answer and an
+ * answer whose evidence simply was not drawn have to look different.
+ */
+@Composable
+private fun RagEvidence(rag: AgentRagInfo, modifier: Modifier = Modifier) {
+    val padding = LocalAppPadding.current
+
+    Column(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.ai_agent_rag_sources_title),
+            modifier = Modifier.padding(top = padding.quarter),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        if (rag.sourcesToShow.isEmpty()) {
+            Text(
+                text = stringResource(R.string.ai_agent_rag_no_sources),
+                style = MaterialTheme.typography.bodySmall
+            )
+        } else {
+            rag.sourcesToShow.forEach { source ->
                 Text(
-                    text = stringResource(R.string.ai_agent_rag_no_sources),
-                    style = MaterialTheme.typography.bodySmall
+                    text = stringResource(R.string.ai_agent_rag_source_row, source.file),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-            } else {
-                rag.sources.forEach { source ->
+
+                if (source.section.isNotBlank()) {
                     Text(
-                        text = stringResource(R.string.ai_agent_rag_source_row, source),
+                        text = stringResource(R.string.ai_agent_rag_source_section, source.section),
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                if (source.chunkId.isNotBlank()) {
+                    Text(
+                        text = stringResource(R.string.ai_agent_rag_source_chunk, source.chunkId),
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
+        }
 
+        Text(
+            text = stringResource(R.string.ai_agent_rag_citations_title),
+            modifier = Modifier.padding(top = padding.quarter),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        if (rag.citations.isEmpty()) {
+            Text(
+                text = stringResource(R.string.ai_agent_rag_no_citations),
+                style = MaterialTheme.typography.bodySmall
+            )
+        } else {
+            rag.citations.forEach { citation ->
+                Text(
+                    text = stringResource(R.string.ai_agent_rag_quote, citation.quote),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontStyle = FontStyle.Italic
+                )
+
+                Text(
+                    text = stringResource(R.string.ai_agent_rag_quote_from, citation.source, citation.chunkId),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        if (rag.chunkCount > 0) {
             Text(
                 text = stringResource(R.string.ai_agent_rag_chunks, rag.chunkCount),
-                modifier = Modifier.padding(top = LocalAppPadding.current.quarter),
+                modifier = Modifier.padding(top = padding.quarter),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -115,11 +192,14 @@ private fun RagFunnel(debug: AgentRagDebug, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodySmall
         )
 
-        if (debug.nothingRelevant) {
+        if (debug.answerThreshold > 0.0) {
             Text(
-                text = stringResource(R.string.ai_agent_rag_nothing_relevant, debug.threshold),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary
+                text = stringResource(
+                    R.string.ai_agent_rag_relevance,
+                    debug.bestRelevance,
+                    debug.answerThreshold
+                ),
+                style = MaterialTheme.typography.bodySmall
             )
         }
     }
@@ -130,4 +210,11 @@ private fun RagMode.titleRes(): Int = when (this) {
     RagMode.OFF -> R.string.ai_agent_rag_mode_off
     RagMode.BASELINE -> R.string.ai_agent_rag_mode_baseline
     RagMode.ENHANCED -> R.string.ai_agent_rag_mode_enhanced
+}
+
+/** What the backend did, in the words the assignment asks for. */
+private fun RagStatus.labelRes(): Int = when (this) {
+    RagStatus.ANSWERED -> R.string.ai_agent_rag_status_answered
+    RagStatus.INSUFFICIENT_CONTEXT -> R.string.ai_agent_rag_status_insufficient
+    RagStatus.DISABLED -> R.string.ai_agent_rag_status_disabled
 }

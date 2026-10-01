@@ -33,7 +33,30 @@ data class AgentRagResponseDto(
     @SerializedName("embedding_model") val embeddingModel: String?,
     @SerializedName("retrieval_seconds") val retrievalSeconds: Double?,
     @SerializedName("llm_seconds") val llmSeconds: Double?,
-    @SerializedName("debug") val debug: AgentRagDebugDto?
+    @SerializedName("debug") val debug: AgentRagDebugDto?,
+    @SerializedName("rag_status") val ragStatus: String?,
+    @SerializedName("confidence") val confidence: String?,
+    @SerializedName("citation_support") val citationSupport: String?,
+    @SerializedName("cited_sources") val citedSources: List<AgentRagSourceDto>?,
+    @SerializedName("citations") val citations: List<AgentRagCitationDto>?
+)
+
+/** One document behind an answer (Day 24). The backend builds it from the
+ * chunks a validated citation points at; the device only draws it. */
+data class AgentRagSourceDto(
+    @SerializedName("source") val source: String?,
+    @SerializedName("file") val file: String?,
+    @SerializedName("section") val section: String?,
+    @SerializedName("chunk_id") val chunkId: String?
+)
+
+/** One exact fragment of one indexed document (Day 24). The quote has
+ * already been checked on the backend against the chunk it names. */
+data class AgentRagCitationDto(
+    @SerializedName("source") val source: String?,
+    @SerializedName("section") val section: String?,
+    @SerializedName("chunk_id") val chunkId: String?,
+    @SerializedName("quote") val quote: String?
 )
 
 data class AgentRagChunkDto(
@@ -56,5 +79,8 @@ data class AgentRagDebugDto(
     @SerializedName("filtered_count") val filteredCount: Int?,
     @SerializedName("final_count") val finalCount: Int?,
     @SerializedName("threshold") val threshold: Double?,
-    @SerializedName("reordered") val reordered: Boolean?
+    @SerializedName("reordered") val reordered: Boolean?,
+    @SerializedName("best_relevance") val bestRelevance: Double?,
+    @SerializedName("best_similarity") val bestSimilarity: Double?,
+    @SerializedName("answer_threshold") val answerThreshold: Double?
 )

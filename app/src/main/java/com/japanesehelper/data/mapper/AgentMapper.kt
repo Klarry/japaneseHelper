@@ -10,7 +10,9 @@ import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentDigestDto
 import com.japanesehelper.data.remote.dto.AgentDocumentIndexDto
 import com.japanesehelper.data.remote.dto.AgentRagChunkDto
+import com.japanesehelper.data.remote.dto.AgentRagCitationDto
 import com.japanesehelper.data.remote.dto.AgentRagDebugDto
+import com.japanesehelper.data.remote.dto.AgentRagSourceDto
 import com.japanesehelper.data.remote.dto.AgentRagResponseDto
 import com.japanesehelper.data.remote.dto.AgentHistoryMessageDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
@@ -41,7 +43,9 @@ import com.japanesehelper.domain.model.AgentPipelineStep
 import com.japanesehelper.domain.model.AgentPipelineWord
 import com.japanesehelper.domain.model.AgentRagAnswer
 import com.japanesehelper.domain.model.AgentRagChunk
+import com.japanesehelper.domain.model.AgentRagCitation
 import com.japanesehelper.domain.model.AgentRagDebug
+import com.japanesehelper.domain.model.AgentRagSource
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
 import com.japanesehelper.domain.model.AgentTaskRefusal
@@ -51,6 +55,7 @@ import com.japanesehelper.domain.model.AgentToolCall
 import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.model.AgentWorkingMemory
 import com.japanesehelper.domain.model.RagMode
+import com.japanesehelper.domain.model.RagStatus
 
 fun AgentChatResponseDto.toDomain(): AgentReply {
     return AgentReply(
@@ -291,7 +296,39 @@ fun AgentRagResponseDto.toDomain(): AgentRagAnswer {
         embeddingModel = embeddingModel.orEmpty(),
         retrievalSeconds = retrievalSeconds ?: 0.0,
         llmSeconds = llmSeconds ?: 0.0,
-        debug = debug?.toDomain()
+        debug = debug?.toDomain(),
+        status = RagStatus.from(ragStatus),
+        confidence = confidence.orEmpty(),
+        citationSupport = citationSupport.orEmpty(),
+        citedSources = citedSources.orEmpty().mapNotNull { it.toDomain() },
+        citations = citations.orEmpty().mapNotNull { it.toDomain() }
+    )
+}
+
+/** A source with no file names nothing that can be shown, so it is dropped -
+ * the screen would rather show one fewer source than an empty row. */
+fun AgentRagSourceDto.toDomain(): AgentRagSource? {
+    val name = file?.takeIf { it.isNotBlank() } ?: return null
+
+    return AgentRagSource(
+        source = source.orEmpty().ifBlank { "project" },
+        file = name,
+        section = section.orEmpty(),
+        chunkId = chunkId.orEmpty()
+    )
+}
+
+/** A citation without a quote is not evidence of anything, and one without a
+ * chunk cannot be traced back, so neither is drawn. */
+fun AgentRagCitationDto.toDomain(): AgentRagCitation? {
+    val text = quote?.takeIf { it.isNotBlank() } ?: return null
+    val chunk = chunkId?.takeIf { it.isNotBlank() } ?: return null
+
+    return AgentRagCitation(
+        source = source.orEmpty(),
+        section = section.orEmpty(),
+        chunkId = chunk,
+        quote = text
     )
 }
 
@@ -323,6 +360,9 @@ fun AgentRagDebugDto.toDomain(): AgentRagDebug {
         filteredCount = filteredCount ?: 0,
         finalCount = finalCount ?: 0,
         threshold = threshold ?: 0.0,
-        reordered = reordered ?: false
+        reordered = reordered ?: false,
+        bestRelevance = bestRelevance ?: 0.0,
+        bestSimilarity = bestSimilarity ?: 0.0,
+        answerThreshold = answerThreshold ?: 0.0
     )
 }

@@ -522,7 +522,13 @@ class AiAgentViewModel @Inject constructor(
                             // the one that was asked for: they agree, and if
                             // they ever did not, the answer decides.
                             mode = reply.mode,
-                            debug = reply.debug
+                            debug = reply.debug,
+                            // Day 24: what the backend decided, and the
+                            // evidence it decided it on. Copied, not judged -
+                            // the quotes were already checked there.
+                            status = reply.status,
+                            citedSources = reply.citedSources,
+                            citations = reply.citations
                         )
                     )
 
