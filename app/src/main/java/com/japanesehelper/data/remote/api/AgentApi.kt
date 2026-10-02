@@ -9,6 +9,8 @@ import com.japanesehelper.data.remote.dto.AgentCheckpointResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentDigestDto
 import com.japanesehelper.data.remote.dto.AgentDocumentIndexDto
+import com.japanesehelper.data.remote.dto.AgentMiniChatRequestDto
+import com.japanesehelper.data.remote.dto.AgentMiniChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentRagRequestDto
 import com.japanesehelper.data.remote.dto.AgentRagResponseDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
@@ -97,6 +99,11 @@ interface AgentApi {
      * prompt and answers; the device only says whether to retrieve. */
     @POST("agent/rag")
     suspend fun askWithRag(@Body request: AgentRagRequestDto): AgentRagResponseDto
+
+    /** One turn of the mini chat (Day 25): the backend keeps the history and
+     * the task memory, retrieves for every message and answers with sources. */
+    @POST("agent/mini-chat")
+    suspend fun askTheChat(@Body request: AgentMiniChatRequestDto): AgentMiniChatResponseDto
 
     @GET("agent/task")
     suspend fun getTaskState(): AgentTaskStateDto

@@ -3,6 +3,7 @@ package com.japanesehelper.domain.repository
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentDigest
 import com.japanesehelper.domain.model.AgentDocumentIndex
+import com.japanesehelper.domain.model.AgentMiniChatAnswer
 import com.japanesehelper.domain.model.AgentRagAnswer
 import com.japanesehelper.domain.model.RagMode
 import com.japanesehelper.domain.model.AgentContextStrategy
@@ -37,6 +38,10 @@ interface AgentRepository {
 
     /** Ask the document index a question, with or without retrieval. */
     suspend fun askWithRag(question: String, mode: RagMode, topK: Int): AgentRagAnswer
+
+    /** One turn of the mini chat (Day 25). The backend keeps the history
+     * and the task memory; this sends a message and draws what comes back. */
+    suspend fun askTheChat(message: String): AgentMiniChatAnswer
 
     suspend fun getTaskState(): AgentTaskState
     suspend fun clearTaskState(): AgentTaskState

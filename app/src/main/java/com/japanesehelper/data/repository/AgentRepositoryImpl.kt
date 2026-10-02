@@ -7,6 +7,7 @@ import com.japanesehelper.data.remote.api.AgentApi
 import com.japanesehelper.data.remote.dto.AgentBranchRequestDto
 import com.japanesehelper.data.remote.dto.AgentBranchSwitchRequestDto
 import com.japanesehelper.data.remote.dto.AgentChatRequestDto
+import com.japanesehelper.data.remote.dto.AgentMiniChatRequestDto
 import com.japanesehelper.data.remote.dto.AgentRagRequestDto
 import com.japanesehelper.data.remote.dto.AgentInvariantRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyRequestDto
@@ -16,6 +17,7 @@ import com.japanesehelper.data.remote.dto.AgentTaskValidationRequestDto
 import com.japanesehelper.domain.model.AgentContext
 import com.japanesehelper.domain.model.AgentDigest
 import com.japanesehelper.domain.model.AgentDocumentIndex
+import com.japanesehelper.domain.model.AgentMiniChatAnswer
 import com.japanesehelper.domain.model.AgentRagAnswer
 import com.japanesehelper.domain.model.RagMode
 import com.japanesehelper.domain.model.AgentContextStrategy
@@ -114,6 +116,11 @@ class AgentRepositoryImpl @Inject constructor(
                     mode = mode.wire
                 )
             ).toDomain()
+        }
+
+    override suspend fun askTheChat(message: String): AgentMiniChatAnswer =
+        withContext(Dispatchers.IO) {
+            agentApi.askTheChat(AgentMiniChatRequestDto(message = message)).toDomain()
         }
 
     override suspend fun getTaskState(): AgentTaskState = withContext(Dispatchers.IO) {

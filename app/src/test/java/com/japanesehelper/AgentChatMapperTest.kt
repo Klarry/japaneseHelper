@@ -7,6 +7,7 @@ import com.japanesehelper.data.remote.dto.AgentChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentDigestDto
 import com.japanesehelper.data.remote.dto.AgentDocumentIndexDto
+import com.japanesehelper.data.remote.dto.AgentMiniChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentRagResponseDto
 import com.japanesehelper.domain.model.AgentMessageRole
 import com.japanesehelper.domain.model.AgentPipelineStage
@@ -667,5 +668,76 @@ class AgentChatMapperTest {
 
         assertEquals(RagStatus.ANSWERED, answer.status)
         assertTrue(answer.citations.isEmpty())
+    }
+
+    @Test
+    fun `a mini chat turn arrives with its sources and its task memory`() {
+        val json = """
+            {
+              "answer": "Только инструменты недоступного сервера исчезают.",
+              "rag_status": "answered",
+              "confidence": "medium",
+              "sources": [
+                {"source": "project", "file": "app/services/mcp_registry.py",
+                 "section": "module header", "chunk_id": "app-services-mcp_registry_1"}
+              ],
+              "citations": [
+                {"source": "app/services/mcp_registry.py", "section": "module header",
+                 "chunk_id": "app-services-mcp_registry_1",
+                 "quote": "A server that cannot be reached takes only its own tools with it"}
+              ],
+              "task_memory": {
+                "goal": "функция изучения японского",
+                "confirmed_terms": ["学習"],
+                "constraints": ["N4", "объяснения на русском"],
+                "decisions": ["использовать существующий JLPT API"],
+                "requirements": [],
+                "current_state": "execution"
+              },
+              "memory_changes": ["+ constraint: объяснения на русском"],
+              "retrieved_count": 10, "filtered_count": 6, "final_count": 3,
+              "best_relevance": 0.8412, "answer_threshold": 0.7, "history_length": 12
+            }
+        """.trimIndent()
+
+        val turn = gson.fromJson(json, AgentMiniChatResponseDto::class.java).toDomain()
+
+        assertEquals(RagStatus.ANSWERED, turn.status)
+        assertEquals("функция изучения японского", turn.taskMemory.goal)
+        assertEquals(listOf("N4", "объяснения на русском"), turn.taskMemory.constraints)
+        assertEquals(listOf("学習"), turn.taskMemory.confirmedTerms)
+        assertEquals("execution", turn.taskMemory.currentState)
+        assertEquals("app-services-mcp_registry_1", turn.sources.single().chunkId)
+        assertEquals(3, turn.finalCount)
+        assertEquals(12, turn.historyLength)
+        assertEquals(listOf("+ constraint: объяснения на русском"), turn.memoryChanges)
+    }
+
+    @Test
+    fun `a chat turn with no task memory yet reads as empty rather than missing`() {
+        val json = """
+            {"answer": "Понял.", "rag_status": "insufficient_context",
+             "sources": [], "citations": [], "history_length": 2}
+        """.trimIndent()
+
+        val turn = gson.fromJson(json, AgentMiniChatResponseDto::class.java).toDomain()
+
+        assertEquals(RagStatus.INSUFFICIENT_CONTEXT, turn.status)
+        assertTrue(turn.taskMemory.isEmpty)
+        assertEquals("idle", turn.taskMemory.currentState)
+        assertTrue(turn.sources.isEmpty())
+    }
+
+    @Test
+    fun `a blank entry in the task memory is not drawn as an empty row`() {
+        val json = """
+            {"answer": "a", "task_memory": {"goal": "g", "constraints": ["N4", "", "  "],
+             "decisions": [], "confirmed_terms": [], "requirements": [], "current_state": ""}}
+        """.trimIndent()
+
+        val turn = gson.fromJson(json, AgentMiniChatResponseDto::class.java).toDomain()
+
+        assertEquals(listOf("N4"), turn.taskMemory.constraints)
+        assertEquals("idle", turn.taskMemory.currentState)
     }
 }

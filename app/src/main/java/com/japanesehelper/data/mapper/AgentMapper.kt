@@ -9,10 +9,12 @@ import com.japanesehelper.data.remote.dto.AgentToolCallDto
 import com.japanesehelper.data.remote.dto.AgentContextResponseDto
 import com.japanesehelper.data.remote.dto.AgentDigestDto
 import com.japanesehelper.data.remote.dto.AgentDocumentIndexDto
+import com.japanesehelper.data.remote.dto.AgentMiniChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentRagChunkDto
 import com.japanesehelper.data.remote.dto.AgentRagCitationDto
 import com.japanesehelper.data.remote.dto.AgentRagDebugDto
 import com.japanesehelper.data.remote.dto.AgentRagSourceDto
+import com.japanesehelper.data.remote.dto.AgentTaskMemoryDto
 import com.japanesehelper.data.remote.dto.AgentRagResponseDto
 import com.japanesehelper.data.remote.dto.AgentHistoryMessageDto
 import com.japanesehelper.data.remote.dto.AgentHistoryResponseDto
@@ -37,6 +39,7 @@ import com.japanesehelper.domain.model.AgentLongTermMemory
 import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMessage
 import com.japanesehelper.domain.model.AgentMessageRole
+import com.japanesehelper.domain.model.AgentMiniChatAnswer
 import com.japanesehelper.domain.model.AgentPipeline
 import com.japanesehelper.domain.model.AgentPipelineStage
 import com.japanesehelper.domain.model.AgentPipelineStep
@@ -48,6 +51,7 @@ import com.japanesehelper.domain.model.AgentRagDebug
 import com.japanesehelper.domain.model.AgentRagSource
 import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentShortTermMemory
+import com.japanesehelper.domain.model.AgentTaskMemory
 import com.japanesehelper.domain.model.AgentTaskRefusal
 import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentTokenUsage
@@ -364,5 +368,39 @@ fun AgentRagDebugDto.toDomain(): AgentRagDebug {
         bestRelevance = bestRelevance ?: 0.0,
         bestSimilarity = bestSimilarity ?: 0.0,
         answerThreshold = answerThreshold ?: 0.0
+    )
+}
+
+/** POST /agent/mini-chat -> what the screen shows (Day 25). Everything here
+ * is copied: the counts, the memory and the sources were all decided on the
+ * backend, and nothing on the device may re-decide them. */
+fun AgentMiniChatResponseDto.toDomain(): AgentMiniChatAnswer {
+    return AgentMiniChatAnswer(
+        answer = answer.orEmpty(),
+        status = RagStatus.from(ragStatus),
+        confidence = confidence.orEmpty(),
+        sources = sources.orEmpty().mapNotNull { it.toDomain() },
+        citations = citations.orEmpty().mapNotNull { it.toDomain() },
+        taskMemory = taskMemory?.toDomain() ?: AgentTaskMemory(),
+        memoryChanges = memoryChanges.orEmpty(),
+        retrievedCount = retrievedCount ?: 0,
+        filteredCount = filteredCount ?: 0,
+        finalCount = finalCount ?: 0,
+        bestRelevance = bestRelevance ?: 0.0,
+        answerThreshold = answerThreshold ?: 0.0,
+        historyLength = historyLength ?: 0
+    )
+}
+
+/** A blank entry names nothing and is dropped, so an empty row never
+ * appears under a heading that promised something. */
+fun AgentTaskMemoryDto.toDomain(): AgentTaskMemory {
+    return AgentTaskMemory(
+        goal = goal.orEmpty(),
+        confirmedTerms = confirmedTerms.orEmpty().filter { it.isNotBlank() },
+        constraints = constraints.orEmpty().filter { it.isNotBlank() },
+        decisions = decisions.orEmpty().filter { it.isNotBlank() },
+        requirements = requirements.orEmpty().filter { it.isNotBlank() },
+        currentState = currentState.orEmpty().ifBlank { "idle" }
     )
 }

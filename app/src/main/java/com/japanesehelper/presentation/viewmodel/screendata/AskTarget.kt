@@ -17,7 +17,7 @@ import com.japanesehelper.domain.model.RagMode
  * of the backend's modes on a POST /agent/rag. Nothing here decides what a
  * mode means.
  */
-enum class AskTarget(val ragMode: RagMode?) {
+enum class AskTarget(val ragMode: RagMode?, val isChat: Boolean = false) {
     /** The learning agent - the screen as it was before any of this. */
     AGENT(null),
 
@@ -31,8 +31,17 @@ enum class AskTarget(val ragMode: RagMode?) {
 
     /** Day 23: rewrite the query, filter by similarity, rerank, keep the
      * best few. */
-    RAG_ENHANCED(RagMode.ENHANCED);
+    RAG_ENHANCED(RagMode.ENHANCED),
 
-    /** Whether the question goes to the document index's endpoint at all. */
+    /** Day 25: the mini chat. The same enhanced retrieval, but as part of a
+     * conversation the backend keeps - with its history and the memory of
+     * what this task has settled. It has no [ragMode] because it is not a
+     * mode of the one-shot endpoint: it is a different endpoint. */
+    CHAT(null, isChat = true);
+
+    /** Whether the question goes to the document index's one-shot endpoint. */
     val asksTheIndex: Boolean get() = ragMode != null
+
+    /** Whether the question goes to the mini chat instead. */
+    val asksTheChat: Boolean get() = isChat
 }

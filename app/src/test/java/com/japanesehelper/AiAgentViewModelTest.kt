@@ -19,6 +19,8 @@ import com.japanesehelper.domain.model.AgentProfilePreset
 import com.japanesehelper.domain.model.AgentRagAnswer
 import com.japanesehelper.domain.model.AgentRagChunk
 import com.japanesehelper.domain.model.AgentRagDebug
+import com.japanesehelper.domain.model.AgentTaskMemory
+import com.japanesehelper.domain.model.AgentMiniChatAnswer
 import com.japanesehelper.domain.model.AgentRagCitation
 import com.japanesehelper.domain.model.AgentRagSource
 import com.japanesehelper.domain.model.RagMode
@@ -146,6 +148,8 @@ class AiAgentViewModelTest {
         override suspend fun getDocumentIndex(): AgentDocumentIndex = AgentDocumentIndex()
         override suspend fun askWithRag(question: String, mode: RagMode, topK: Int): AgentRagAnswer =
             AgentRagAnswer(answer = "from the documents", ragEnabled = mode != RagMode.OFF, mode = mode)
+        override suspend fun askTheChat(message: String): AgentMiniChatAnswer =
+            AgentMiniChatAnswer(answer = "from the chat")
         override suspend fun getTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun clearTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun requestTaskTransition(stage: AgentTaskStage): AgentTaskState =
@@ -1677,6 +1681,188 @@ class AiAgentViewModelTest {
             bestRelevance = 0.41,
             answerThreshold = 0.7
         )
+    )
+
+    // --- the mini chat (Day 25) --------------------------------------------
+
+    @Test
+    fun `the chat chip sends the message to the chat endpoint`() {
+        given()
+        whenever(repository.askTheChat(any())).thenReturn(chatAnswer())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.CHAT)
+        viewModel.onMessageChanged("Наша задача — функция изучения японского.")
+
+        viewModel.send()
+
+        verify(repository, times(1)).askTheChat("Наша задача — функция изучения японского.")
+        verify(repository, never()).chat(any(), any())
+        verify(repository, never()).askWithRag(any(), any(), any())
+    }
+
+    @Test
+    fun `a chat answer keeps its sources`() {
+        given()
+        whenever(repository.askTheChat(any())).thenReturn(chatAnswer())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.CHAT)
+        viewModel.onMessageChanged("Что происходит, когда MCP-сервер недоступен?")
+
+        viewModel.send()
+
+        val rag = lastAnswer(viewModel).rag
+        assertEquals(1, rag?.citedSources?.size)
+        assertEquals("app/services/mcp_registry.py", rag?.citedSources?.single()?.file)
+        assertEquals(QUOTE, rag?.citations?.single()?.quote)
+    }
+
+    @Test
+    fun `the task memory the backend reports is kept on the screen`() {
+        given()
+        whenever(repository.askTheChat(any())).thenReturn(chatAnswer())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.CHAT)
+        viewModel.onMessageChanged("anything")
+
+        viewModel.send()
+
+        val memory = viewModel.state.value.taskMemory
+        assertEquals("функция изучения японского", memory?.goal)
+        assertEquals(listOf("N4", "объяснения на русском"), memory?.constraints)
+        assertEquals(listOf("использовать существующий JLPT API"), memory?.decisions)
+        assertEquals(listOf("学習"), memory?.confirmedTerms)
+    }
+
+    @Test
+    fun `a long conversation keeps the goal, the constraints and the decisions`() {
+        given()
+        val answers = (1..14).map { number ->
+            chatAnswer(
+                answer = "Ответ $number",
+                constraints = if (number >= 3) listOf("N4", "объяснения на русском") else listOf("N4"),
+                decisions = if (number >= 5) listOf("использовать существующий JLPT API") else emptyList(),
+                historyLength = number * 2
+            )
+        }
+        var call = 0
+        whenever(repository.askTheChat(any())).thenAnswer { answers[call++] }
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.CHAT)
+
+        repeat(14) { number ->
+            viewModel.onMessageChanged("Сообщение $number")
+            viewModel.send()
+        }
+
+        val messages = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages
+        val memory = viewModel.state.value.taskMemory
+        assertEquals(28, messages.size)
+        assertEquals("функция изучения японского", memory?.goal)
+        assertEquals(listOf("N4", "объяснения на русском"), memory?.constraints)
+        assertEquals(listOf("использовать существующий JLPT API"), memory?.decisions)
+        verify(repository, times(14)).askTheChat(any())
+    }
+
+    @Test
+    fun `every chat answer carries its sources through a long conversation`() {
+        given()
+        whenever(repository.askTheChat(any())).thenReturn(chatAnswer())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.CHAT)
+
+        repeat(12) { number ->
+            viewModel.onMessageChanged("Сообщение $number")
+            viewModel.send()
+        }
+
+        val answers = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages
+            .filter { it.role == AgentMessageRole.ASSISTANT }
+        assertEquals(12, answers.size)
+        assertTrue(answers.all { it.rag?.citedSources?.isNotEmpty() == true })
+    }
+
+    @Test
+    fun `an answer with nothing relevant still reports the funnel and no sources`() {
+        given()
+        whenever(repository.askTheChat(any())).thenReturn(
+            AgentMiniChatAnswer(
+                answer = "I don't know based on the indexed documents. Please clarify your question.",
+                status = RagStatus.INSUFFICIENT_CONTEXT,
+                taskMemory = AgentTaskMemory(goal = "функция изучения японского"),
+                retrievedCount = 10,
+                filteredCount = 0,
+                finalCount = 0,
+                historyLength = 8
+            )
+        )
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.CHAT)
+        viewModel.onMessageChanged("Какую реляционную базу мы используем?")
+
+        viewModel.send()
+
+        val rag = lastAnswer(viewModel).rag
+        assertEquals(RagStatus.INSUFFICIENT_CONTEXT, rag?.status)
+        assertTrue(rag?.citedSources.isNullOrEmpty())
+        assertEquals(10, rag?.chat?.retrievedCount)
+        assertEquals("функция изучения японского", viewModel.state.value.taskMemory?.goal)
+    }
+
+    @Test
+    fun `switching back to the agent leaves the chat path alone`() {
+        given()
+        whenever(repository.chat(any(), any())).thenReturn(reply("обычный ответ"))
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.CHAT)
+        viewModel.onAskTargetChanged(AskTarget.AGENT)
+        viewModel.onMessageChanged("Что означает 学習?")
+
+        viewModel.send()
+
+        verify(repository, times(1)).chat(any(), any())
+        verify(repository, never()).askTheChat(any())
+        assertNull(lastAnswer(viewModel).rag)
+    }
+
+    private fun chatAnswer(
+        answer: String = "Только инструменты недоступного сервера исчезают.",
+        constraints: List<String> = listOf("N4", "объяснения на русском"),
+        decisions: List<String> = listOf("использовать существующий JLPT API"),
+        historyLength: Int = 2
+    ) = AgentMiniChatAnswer(
+        answer = answer,
+        status = RagStatus.ANSWERED,
+        confidence = "medium",
+        sources = listOf(
+            AgentRagSource(
+                source = "project",
+                file = "app/services/mcp_registry.py",
+                section = "module header",
+                chunkId = "app-services-mcp_registry_1"
+            )
+        ),
+        citations = listOf(
+            AgentRagCitation(
+                source = "app/services/mcp_registry.py",
+                section = "module header",
+                chunkId = "app-services-mcp_registry_1",
+                quote = QUOTE
+            )
+        ),
+        taskMemory = AgentTaskMemory(
+            goal = "функция изучения японского",
+            confirmedTerms = listOf("学習"),
+            constraints = constraints,
+            decisions = decisions,
+            currentState = "execution"
+        ),
+        memoryChanges = listOf("+ constraint: объяснения на русском"),
+        retrievedCount = 10,
+        filteredCount = 6,
+        finalCount = 3,
+        bestRelevance = 0.84,
+        answerThreshold = 0.7,
+        historyLength = historyLength
     )
 
     // --- the document index readout (Day 21) -------------------------------

@@ -83,9 +83,17 @@
     <string name="ai_agent_rag_chunks">Retrieved chunks: %1$d</string>
     <string name="ai_agent_rag_baseline">BASELINE</string>
     <string name="ai_agent_rag_enhanced">ENHANCED</string>
+    <string name="ai_agent_ask_chat">CHAT</string>
+    <string name="ai_agent_chat_goal">Goal: %1$s</string>
+    <string name="ai_agent_chat_constraints">Constraints: %1$s</string>
+    <string name="ai_agent_chat_decisions">Decisions: %1$s</string>
+    <string name="ai_agent_chat_terms">Terms: %1$s</string>
+    <string name="ai_agent_chat_counts">RAG: %1$d chunks  ·  Sources: %2$d  ·  History: %3$d</string>
+    <string name="ai_agent_chat_changed">Memory changed: %1$s</string>
     <string name="ai_agent_rag_mode_off">Mode: RAG OFF (no retrieval)</string>
     <string name="ai_agent_rag_mode_baseline">Mode: Baseline RAG</string>
     <string name="ai_agent_rag_mode_enhanced">Mode: Enhanced RAG</string>
+    <string name="ai_agent_rag_mode_chat">Mode: Mini chat (RAG + task memory)</string>
     <string name="ai_agent_rag_original_query">Original query: %1$s</string>
     <string name="ai_agent_rag_rewritten_query">Rewritten query: %1$s</string>
     <string name="ai_agent_rag_not_rewritten">Rewritten query: (unchanged)</string>

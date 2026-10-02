@@ -12,6 +12,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
 import com.japanesehelper.R
+import com.japanesehelper.domain.model.AgentMiniChatAnswer
 import com.japanesehelper.domain.model.AgentRagDebug
 import com.japanesehelper.domain.model.AgentRagInfo
 import com.japanesehelper.domain.model.RagMode
@@ -39,7 +40,14 @@ fun RagSources(rag: AgentRagInfo, modifier: Modifier = Modifier) {
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
     ) {
         Column(modifier = Modifier.padding(LocalAppPadding.current.half)) {
-            ReadoutCaption(stringResource(rag.mode.titleRes()))
+            ReadoutCaption(
+                stringResource(
+                    // The mini chat runs the same enhanced retrieval, but it
+                    // is a conversation rather than one question, and saying
+                    // so is the difference the day is about.
+                    if (rag.chat != null) R.string.ai_agent_rag_mode_chat else rag.mode.titleRes()
+                )
+            )
 
             Text(
                 text = stringResource(R.string.ai_agent_rag_status, stringResource(rag.status.labelRes())),
@@ -52,6 +60,7 @@ fun RagSources(rag: AgentRagInfo, modifier: Modifier = Modifier) {
             )
 
             rag.debug?.let { debug -> RagFunnel(debug) }
+            rag.chat?.let { chat -> ChatMemory(chat) }
 
             RagEvidence(rag)
         }
@@ -203,6 +212,75 @@ private fun RagFunnel(debug: AgentRagDebug, modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+/**
+ * The mini chat's own report (Day 25): what the conversation has settled,
+ * and how much was retrieved for this message.
+ *
+ * This is the part of the day that is worth looking at on a phone. The goal
+ * and the constraints are what a long conversation is at risk of losing, so
+ * they are shown with every answer rather than hidden behind a switch - and
+ * they are the backend's words, read from the response, not anything the
+ * screen worked out.
+ */
+@Composable
+private fun ChatMemory(chat: AgentMiniChatAnswer, modifier: Modifier = Modifier) {
+    val memory = chat.taskMemory
+
+    Column(modifier = modifier) {
+        if (memory.goal.isNotBlank()) {
+            Text(
+                text = stringResource(R.string.ai_agent_chat_goal, memory.goal),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        ChatMemoryList(R.string.ai_agent_chat_constraints, memory.constraints)
+        ChatMemoryList(R.string.ai_agent_chat_decisions, memory.decisions)
+        ChatMemoryList(R.string.ai_agent_chat_terms, memory.confirmedTerms)
+
+        Text(
+            text = stringResource(
+                R.string.ai_agent_chat_counts,
+                chat.finalCount,
+                chat.sources.size,
+                chat.historyLength
+            ),
+            modifier = Modifier.padding(top = LocalAppPadding.current.quarter),
+            style = MaterialTheme.typography.bodySmall
+        )
+
+        if (chat.memoryChanges.isNotEmpty()) {
+            Text(
+                text = stringResource(
+                    R.string.ai_agent_chat_changed,
+                    chat.memoryChanges.joinToString(", ")
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/** One line of the task memory, or nothing when there is nothing to say. */
+@Composable
+private fun ChatMemoryList(captionRes: Int, entries: List<String>) {
+    if (entries.isEmpty()) {
+        return
+    }
+
+    Text(
+        text = stringResource(captionRes, entries.joinToString(" · ")),
+        style = MaterialTheme.typography.bodySmall,
+        maxLines = 3,
+        overflow = TextOverflow.Ellipsis
+    )
 }
 
 /** What the block above an answer calls itself. */

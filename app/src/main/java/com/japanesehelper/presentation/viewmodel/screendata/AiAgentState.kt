@@ -8,6 +8,7 @@ import com.japanesehelper.domain.model.AgentInvariant
 import com.japanesehelper.domain.model.AgentInvariantCategory
 import com.japanesehelper.domain.model.AgentMemory
 import com.japanesehelper.domain.model.AgentMessage
+import com.japanesehelper.domain.model.AgentTaskMemory
 import com.japanesehelper.domain.model.AgentTaskRefusal
 import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentTokenUsage
@@ -79,6 +80,10 @@ data class AiAgentScreenState(
      * ENHANCED are the backend's three pipelines, compared on the same
      * question through the same endpoint. */
     val askTarget: AskTarget = AskTarget.AGENT,
+    /** What the mini chat's conversation has settled (Day 25). Read from the
+     * last answer the backend sent: the device keeps no task memory of its
+     * own, and this is only the latest report of the backend's. */
+    val taskMemory: AgentTaskMemory? = null,
     /** Where the task in progress has got to. The stages and the moves
      * between them belong to the backend; this is what it reports. */
     val taskState: AgentTaskState? = null,

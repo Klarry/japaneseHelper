@@ -146,6 +146,11 @@ class AiAgentViewModel @Inject constructor(
 
         _state.value = _state.value.copy(isSending = true, sendError = null)
 
+        if (_state.value.askTarget.asksTheChat) {
+            askTheChat(message)
+            return
+        }
+
         if (ragMode != null) {
             askTheDocuments(message, ragMode)
             return
@@ -495,6 +500,46 @@ class AiAgentViewModel @Inject constructor(
     fun stopWatchingPeriodicTask() {
         digestWatcher?.cancel()
         digestWatcher = null
+    }
+
+    /** The mini chat (Day 25): one turn of a conversation the backend keeps.
+     *
+     * Everything that makes it a conversation happens there - the history,
+     * the memory of what this task has settled, retrieval on every message,
+     * the checking of every quote. This sends a message, appends the reply
+     * with the sources it came back with, and keeps the backend's own report
+     * of the task memory so the screen can show it. It decides none of it.
+     */
+    private fun askTheChat(message: String) {
+        viewModelScope.launch {
+            try {
+                val reply = agentRepository.askTheChat(message)
+                val updatedMessages = currentMessages() +
+                    AgentMessage(role = AgentMessageRole.USER, content = message) +
+                    AgentMessage(
+                        role = AgentMessageRole.ASSISTANT,
+                        content = reply.answer,
+                        rag = AgentRagInfo(
+                            sources = emptyList(),
+                            chunkCount = reply.finalCount,
+                            mode = RagMode.ENHANCED,
+                            status = reply.status,
+                            citedSources = reply.sources,
+                            citations = reply.citations,
+                            chat = reply
+                        )
+                    )
+
+                _state.value = _state.value.copy(
+                    message = "",
+                    isSending = false,
+                    history = AgentHistoryUiState.Loaded(updatedMessages),
+                    taskMemory = reply.taskMemory
+                )
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                _state.value = _state.value.copy(isSending = false, sendError = e.toErrorMessage())
+            }
+        }
     }
 
     /** The same screen, the other path: the question goes to the backend's

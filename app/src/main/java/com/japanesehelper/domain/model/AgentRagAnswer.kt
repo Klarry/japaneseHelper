@@ -180,7 +180,11 @@ data class AgentRagInfo(
     val debug: AgentRagDebug? = null,
     val status: RagStatus = RagStatus.ANSWERED,
     val citedSources: List<AgentRagSource> = emptyList(),
-    val citations: List<AgentRagCitation> = emptyList()
+    val citations: List<AgentRagCitation> = emptyList(),
+    /** Day 25: the mini chat's own report for this turn - the task memory as
+     * it stands and the funnel's counts. Null for every other mode, because
+     * there was no conversation to report on. */
+    val chat: AgentMiniChatAnswer? = null
 ) {
     /** The sources to draw, structured when the backend sent them that way.
      *

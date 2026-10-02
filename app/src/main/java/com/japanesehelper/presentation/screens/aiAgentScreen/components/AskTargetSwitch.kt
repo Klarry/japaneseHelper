@@ -65,4 +65,5 @@ private fun AskTarget.labelRes(): Int = when (this) {
     AskTarget.RAG_OFF -> R.string.ai_agent_rag_off
     AskTarget.RAG_BASELINE -> R.string.ai_agent_rag_baseline
     AskTarget.RAG_ENHANCED -> R.string.ai_agent_rag_enhanced
+    AskTarget.CHAT -> R.string.ai_agent_ask_chat
 }
