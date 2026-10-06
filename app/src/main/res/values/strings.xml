@@ -84,6 +84,14 @@
     <string name="ai_agent_rag_baseline">BASELINE</string>
     <string name="ai_agent_rag_enhanced">ENHANCED</string>
     <string name="ai_agent_ask_chat">CHAT</string>
+    <string name="ai_agent_provider_label">Provider:</string>
+    <string name="ai_agent_provider_cloud">Cloud</string>
+    <string name="ai_agent_provider_local">Local LLM</string>
+    <string name="ai_agent_local_llm_checking">Local LLM: checking…</string>
+    <string name="ai_agent_local_llm_unknown">Local LLM: not checked yet</string>
+    <string name="ai_agent_local_llm_connected">Local LLM: %1$s · Status: Connected</string>
+    <string name="ai_agent_local_llm_not_pulled">Local LLM: %1$s is not pulled on the backend</string>
+    <string name="ai_agent_local_llm_unavailable">Local LLM: unavailable</string>
     <string name="ai_agent_chat_goal">Goal: %1$s</string>
     <string name="ai_agent_chat_constraints">Constraints: %1$s</string>
     <string name="ai_agent_chat_decisions">Decisions: %1$s</string>

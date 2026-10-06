@@ -13,6 +13,8 @@ import com.japanesehelper.domain.model.AgentTaskRefusal
 import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentTokenUsage
 import com.japanesehelper.domain.model.AgentUserProfile
+import com.japanesehelper.domain.model.LocalLlmHealth
+import com.japanesehelper.domain.model.ModelProvider
 
 sealed class AgentHistoryUiState {
     data object Loading : AgentHistoryUiState()
@@ -80,6 +82,16 @@ data class AiAgentScreenState(
      * ENHANCED are the backend's three pipelines, compared on the same
      * question through the same endpoint. */
     val askTarget: AskTarget = AskTarget.AGENT,
+    /** Which model answers the next message (Day 27). Cloud by default, so
+     * the screen behaves exactly as it always has until someone chooses the
+     * local one - and when they do, every question goes to it and none
+     * falls back. */
+    val provider: ModelProvider = ModelProvider.CLOUD,
+    /** What the backend reports about the local model. Null until it has
+     * been asked, which only happens once the local provider is chosen -
+     * there is no point polling a model nobody is using. */
+    val localLlm: LocalLlmHealth? = null,
+    val isLocalLlmChecking: Boolean = false,
     /** What the mini chat's conversation has settled (Day 25). Read from the
      * last answer the backend sent: the device keeps no task memory of its
      * own, and this is only the latest report of the backend's. */

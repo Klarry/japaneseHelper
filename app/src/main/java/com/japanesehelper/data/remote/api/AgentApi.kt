@@ -18,6 +18,9 @@ import com.japanesehelper.data.remote.dto.AgentInvariantRequestDto
 import com.japanesehelper.data.remote.dto.AgentInvariantsResponseDto
 import com.japanesehelper.data.remote.dto.AgentMemoryResponseDto
 import com.japanesehelper.data.remote.dto.AgentUserProfileDto
+import com.japanesehelper.data.remote.dto.LocalChatRequestDto
+import com.japanesehelper.data.remote.dto.LocalChatResponseDto
+import com.japanesehelper.data.remote.dto.LocalLlmHealthDto
 import com.japanesehelper.data.remote.dto.AgentUserProfileRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyResponseDto
@@ -146,4 +149,17 @@ interface AgentApi {
     suspend fun deleteInvariant(
         @Path("id") id: String
     ): AgentInvariantsResponseDto
+
+    /** Day 27: the local model, through the same backend and the same
+     * Retrofit instance as everything else. The device never talks to
+     * Ollama itself - it would not know where it is, and should not. */
+    @POST("local-chat")
+    suspend fun askTheLocalModel(
+        @Body request: LocalChatRequestDto
+    ): LocalChatResponseDto
+
+    /** What the status line is drawn from. Always 200: "the local model is
+     * down" and "this check is broken" are different things. */
+    @GET("local-llm/health")
+    suspend fun getLocalLlmHealth(): LocalLlmHealthDto
 }

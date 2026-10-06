@@ -30,6 +30,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import javax.inject.Inject
+import com.japanesehelper.domain.model.LocalLlmHealth
+import com.japanesehelper.domain.model.ModelProvider
 
 /** How often the periodic-task block re-reads itself while the screen is on
  * show. Short enough that a run which happened on the backend appears while
@@ -127,6 +129,69 @@ class AiAgentViewModel @Inject constructor(
      * index instead, and the backend decides what each of its modes means.
      * Nothing about retrieval, rewriting, filtering or reranking happens
      * here: this names a mode on a request. */
+    /**
+     * Day 27: choose which model answers.
+     *
+     * Switching to the local one reads its health straight away, so the
+     * status line is true before the first question rather than after it.
+     * Switching back to the cloud leaves the last reading alone - it costs
+     * nothing to keep and is right again the moment the switch comes back.
+     */
+    fun onProviderChanged(provider: ModelProvider) {
+        if (provider == _state.value.provider) return
+
+        _state.value = _state.value.copy(provider = provider, sendError = null)
+
+        if (provider.isLocal) refreshLocalLlmHealth()
+    }
+
+    fun refreshLocalLlmHealth() {
+        if (_state.value.isLocalLlmChecking) return
+
+        _state.value = _state.value.copy(isLocalLlmChecking = true)
+
+        viewModelScope.launch {
+            val health = try {
+                agentRepository.getLocalLlmHealth()
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                // The backend itself could not be reached. That is still
+                // "the local model cannot be asked", and saying so is more
+                // use than an empty status line.
+                LocalLlmHealth(available = false, model = "", error = e.toErrorMessage())
+            }
+
+            _state.value = _state.value.copy(localLlm = health, isLocalLlmChecking = false)
+        }
+    }
+
+    /**
+     * Day 27: one message, answered by the model on the backend's machine.
+     *
+     * The reply is appended to the same conversation as every other answer,
+     * because to the person it is the same chat. What it is not is a
+     * fallback: if the local model cannot answer, this shows the backend's
+     * refusal and stops. Nothing here knows how to ask a cloud model.
+     */
+    private fun askTheLocalModel(message: String) {
+        viewModelScope.launch {
+            try {
+                val reply = agentRepository.askTheLocalModel(message)
+                val updatedMessages = currentMessages() +
+                    AgentMessage(role = AgentMessageRole.USER, content = message) +
+                    AgentMessage(role = AgentMessageRole.ASSISTANT, content = reply.response)
+
+                _state.value = _state.value.copy(
+                    message = "",
+                    isSending = false,
+                    history = AgentHistoryUiState.Loaded(updatedMessages)
+                )
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                _state.value = _state.value.copy(isSending = false, sendError = e.toErrorMessage())
+                refreshLocalLlmHealth()
+            }
+        }
+    }
+
     fun onAskTargetChanged(target: AskTarget) {
         if (target == _state.value.askTarget) return
 
@@ -145,6 +210,14 @@ class AiAgentViewModel @Inject constructor(
         val ragMode = _state.value.askTarget.ragMode
 
         _state.value = _state.value.copy(isSending = true, sendError = null)
+
+        // Checked before anything else, and it is the only branch that can
+        // be taken in this mode: no ask target, no strategy and no failure
+        // sends this question to the cloud instead.
+        if (_state.value.provider.isLocal) {
+            askTheLocalModel(message)
+            return
+        }
 
         if (_state.value.askTarget.asksTheChat) {
             askTheChat(message)

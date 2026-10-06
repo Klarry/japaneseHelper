@@ -16,6 +16,8 @@ import com.japanesehelper.domain.model.AgentReply
 import com.japanesehelper.domain.model.AgentTaskStage
 import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentUserProfile
+import com.japanesehelper.domain.model.LocalLlmAnswer
+import com.japanesehelper.domain.model.LocalLlmHealth
 
 interface AgentRepository {
     suspend fun chat(message: String, strategy: AgentContextStrategy): AgentReply
@@ -42,6 +44,16 @@ interface AgentRepository {
     /** One turn of the mini chat (Day 25). The backend keeps the history
      * and the task memory; this sends a message and draws what comes back. */
     suspend fun askTheChat(message: String): AgentMiniChatAnswer
+
+    /** Day 27: ask the model running on the backend's own machine.
+     *
+     * A separate method rather than a flag on [askTheChat], because it is a
+     * different model answering through a different endpoint, and a flag
+     * would invite a fallback between them. */
+    suspend fun askTheLocalModel(message: String): LocalLlmAnswer
+
+    /** Whether that model can be asked at all - for the status line. */
+    suspend fun getLocalLlmHealth(): LocalLlmHealth
 
     suspend fun getTaskState(): AgentTaskState
     suspend fun clearTaskState(): AgentTaskState

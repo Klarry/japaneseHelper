@@ -57,6 +57,9 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import com.japanesehelper.domain.model.LocalLlmAnswer
+import com.japanesehelper.domain.model.LocalLlmHealth
+import com.japanesehelper.domain.model.ModelProvider
 
 class AiAgentViewModelTest {
 
@@ -128,6 +131,14 @@ class AiAgentViewModelTest {
 
     /** Every method already behaves, so a test overrides only what it is about. */
     private open class FakeAgentRepository : AgentRepository {
+        /** Day 27. Null stands for a local model that cannot answer, so a
+         * test can ask what the screen does when it is down without
+         * subclassing for it. */
+        var localAnswer: LocalLlmAnswer? =
+            LocalLlmAnswer(response = "from the local model", model = "qwen3:4b", provider = "ollama")
+        var localHealth: LocalLlmHealth =
+            LocalLlmHealth(available = true, model = "qwen3:4b", modelInstalled = true)
+
         override suspend fun chat(message: String, strategy: AgentContextStrategy): AgentReply =
             AgentReply("answer", AgentTokenUsage(null, null, null, null))
 
@@ -150,6 +161,9 @@ class AiAgentViewModelTest {
             AgentRagAnswer(answer = "from the documents", ragEnabled = mode != RagMode.OFF, mode = mode)
         override suspend fun askTheChat(message: String): AgentMiniChatAnswer =
             AgentMiniChatAnswer(answer = "from the chat")
+        override suspend fun askTheLocalModel(message: String): LocalLlmAnswer =
+            localAnswer ?: throw IllegalStateException("Local LLM is unavailable")
+        override suspend fun getLocalLlmHealth(): LocalLlmHealth = localHealth
         override suspend fun getTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun clearTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun requestTaskTransition(stage: AgentTaskStage): AgentTaskState =
@@ -2036,5 +2050,183 @@ class AiAgentViewModelTest {
         assertNull(viewModel.state.value.digest)
         assertNull(viewModel.state.value.sendError)
         assertTrue(viewModel.state.value.history is AgentHistoryUiState.Loaded)
+    }
+
+    // --- Day 27: the local model ------------------------------------------
+
+    private fun localAnswer(response: String = "MCP is a protocol.") =
+        LocalLlmAnswer(response = response, model = "qwen3:4b", provider = "ollama", seconds = 23.5)
+
+    private fun localHealth(
+        available: Boolean = true,
+        modelInstalled: Boolean = true,
+        error: String = ""
+    ) = LocalLlmHealth(
+        available = available,
+        model = "qwen3:4b",
+        modelInstalled = modelInstalled,
+        models = if (modelInstalled) listOf("qwen3:4b") else emptyList(),
+        error = error
+    )
+
+    @Test
+    fun `the screen starts on the cloud, exactly as it always did`() = runTest {
+        given()
+
+        val viewModel = createViewModel()
+
+        assertEquals(ModelProvider.CLOUD, viewModel.state.value.provider)
+        assertNull(viewModel.state.value.localLlm)
+        verify(repository, never()).getLocalLlmHealth()
+    }
+
+    @Test
+    fun `choosing the local model reads its health before anything is asked`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth()).thenReturn(localHealth())
+        val viewModel = createViewModel()
+
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+
+        assertEquals(ModelProvider.LOCAL, viewModel.state.value.provider)
+        assertTrue(viewModel.state.value.localLlm?.isReady == true)
+        assertEquals("qwen3:4b", viewModel.state.value.localLlm?.model)
+    }
+
+    @Test
+    fun `in local mode the message goes to the local endpoint and nowhere else`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth()).thenReturn(localHealth())
+        whenever(repository.askTheLocalModel(any())).thenReturn(localAnswer())
+        val viewModel = createViewModel()
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+        viewModel.onMessageChanged("Что такое MCP?")
+
+        viewModel.send()
+
+        verify(repository, times(1)).askTheLocalModel("Что такое MCP?")
+        verify(repository, never()).chat(any(), any())
+        verify(repository, never()).askWithRag(any(), any(), any())
+        verify(repository, never()).askTheChat(any())
+    }
+
+    @Test
+    fun `the local answer appears in the same conversation as every other`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth()).thenReturn(localHealth())
+        whenever(repository.askTheLocalModel(any())).thenReturn(localAnswer("MCP is a protocol."))
+        val viewModel = createViewModel()
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+        viewModel.onMessageChanged("What is MCP?")
+
+        viewModel.send()
+
+        val messages = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages
+
+        assertEquals(2, messages.size)
+        assertEquals("What is MCP?", messages[0].content)
+        assertEquals("MCP is a protocol.", messages[1].content)
+        assertEquals(AgentMessageRole.ASSISTANT, messages[1].role)
+        assertEquals("", viewModel.state.value.message)
+        assertFalse(viewModel.state.value.isSending)
+    }
+
+    /** The ask-target chips are hidden in this mode, but the state they set
+     * survives the switch - so the branch order inside send() is what
+     * actually guarantees this, and this is the test that holds it. */
+    @Test
+    fun `a chosen ask target cannot send a local question to the cloud`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth()).thenReturn(localHealth())
+        whenever(repository.askTheLocalModel(any())).thenReturn(localAnswer())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.CHAT)
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+        viewModel.onMessageChanged("hi")
+
+        viewModel.send()
+
+        verify(repository, times(1)).askTheLocalModel("hi")
+        verify(repository, never()).askTheChat(any())
+    }
+
+    @Test
+    fun `a local model that is down fails loudly instead of falling back`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth()).thenReturn(localHealth())
+        whenever(repository.askTheLocalModel(any()))
+            .thenThrow(RuntimeException("Local LLM is unavailable"))
+        val viewModel = createViewModel()
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+        viewModel.onMessageChanged("hi")
+
+        viewModel.send()
+
+        assertNotNull(viewModel.state.value.sendError)
+        assertFalse(viewModel.state.value.isSending)
+        verify(repository, never()).chat(any(), any())
+        verify(repository, never()).askWithRag(any(), any(), any())
+        verify(repository, never()).askTheChat(any())
+    }
+
+    /** So the screen stops claiming "Connected" the moment it is not. */
+    @Test
+    fun `a failed local question re-reads the status line`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth())
+            .thenReturn(localHealth())
+            .thenReturn(localHealth(available = false, modelInstalled = false, error = "not running"))
+        whenever(repository.askTheLocalModel(any())).thenThrow(RuntimeException("down"))
+        val viewModel = createViewModel()
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+        viewModel.onMessageChanged("hi")
+
+        viewModel.send()
+
+        assertFalse(viewModel.state.value.localLlm?.available == true)
+        verify(repository, times(2)).getLocalLlmHealth()
+    }
+
+    @Test
+    fun `a running server without the model pulled is not reported as connected`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth())
+            .thenReturn(localHealth(available = true, modelInstalled = false))
+        val viewModel = createViewModel()
+
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+
+        val health = viewModel.state.value.localLlm
+
+        assertTrue(health?.available == true)
+        assertFalse(health?.isReady == true)
+    }
+
+    @Test
+    fun `a backend that cannot be reached still produces a status line`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth()).thenThrow(RuntimeException("network down"))
+        val viewModel = createViewModel()
+
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+
+        assertFalse(viewModel.state.value.localLlm?.available == true)
+        assertFalse(viewModel.state.value.isLocalLlmChecking)
+    }
+
+    @Test
+    fun `switching back to the cloud restores every pipeline`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth()).thenReturn(localHealth())
+        whenever(repository.chat(any(), any())).thenReturn(reply("from the agent"))
+        val viewModel = createViewModel()
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+        viewModel.onProviderChanged(ModelProvider.CLOUD)
+        viewModel.onMessageChanged("hi")
+
+        viewModel.send()
+
+        verify(repository, times(1)).chat(any(), any())
+        verify(repository, never()).askTheLocalModel(any())
     }
 }

@@ -36,6 +36,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import javax.inject.Inject
+import com.japanesehelper.data.remote.dto.LocalChatRequestDto
+import com.japanesehelper.domain.model.LocalLlmAnswer
+import com.japanesehelper.domain.model.LocalLlmHealth
 
 private const val HTTP_CONFLICT = 409
 
@@ -122,6 +125,15 @@ class AgentRepositoryImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             agentApi.askTheChat(AgentMiniChatRequestDto(message = message)).toDomain()
         }
+
+    override suspend fun askTheLocalModel(message: String): LocalLlmAnswer =
+        withContext(Dispatchers.IO) {
+            agentApi.askTheLocalModel(LocalChatRequestDto(message = message)).toDomain()
+        }
+
+    override suspend fun getLocalLlmHealth(): LocalLlmHealth = withContext(Dispatchers.IO) {
+        agentApi.getLocalLlmHealth().toDomain()
+    }
 
     override suspend fun getTaskState(): AgentTaskState = withContext(Dispatchers.IO) {
         agentApi.getTaskState().toDomain()

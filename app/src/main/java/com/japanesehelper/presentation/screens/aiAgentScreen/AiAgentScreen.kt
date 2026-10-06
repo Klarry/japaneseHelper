@@ -43,6 +43,7 @@ import com.japanesehelper.presentation.screens.aiAgentScreen.components.Invarian
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.MemoryLayersSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.PeriodicTaskSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.AskTargetSwitch
+import com.japanesehelper.presentation.screens.aiAgentScreen.components.ProviderSwitch
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TaskStateSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.TokenUsageSection
 import com.japanesehelper.presentation.screens.aiAgentScreen.components.UserProfileSection
@@ -145,10 +146,22 @@ fun AiAgentScreen(
                     .padding(horizontal = padding.default, vertical = padding.half),
                 verticalArrangement = Arrangement.spacedBy(padding.half)
             ) {
-                AskTargetSwitch(
-                    target = state.askTarget,
-                    onChanged = viewModel::onAskTargetChanged
+                ProviderSwitch(
+                    provider = state.provider,
+                    health = state.localLlm,
+                    isChecking = state.isLocalLlmChecking,
+                    onChanged = viewModel::onProviderChanged
                 )
+
+                // Hidden while the local model answers: these chips name the
+                // cloud pipelines, and leaving them visible would suggest a
+                // choice that this mode does not have.
+                if (!state.provider.isLocal) {
+                    AskTargetSwitch(
+                        target = state.askTarget,
+                        onChanged = viewModel::onAskTargetChanged
+                    )
+                }
 
                 OutlinedTextField(
                     value = state.message,

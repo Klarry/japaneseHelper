@@ -60,6 +60,10 @@ import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.model.AgentWorkingMemory
 import com.japanesehelper.domain.model.RagMode
 import com.japanesehelper.domain.model.RagStatus
+import com.japanesehelper.data.remote.dto.LocalChatResponseDto
+import com.japanesehelper.data.remote.dto.LocalLlmHealthDto
+import com.japanesehelper.domain.model.LocalLlmAnswer
+import com.japanesehelper.domain.model.LocalLlmHealth
 
 fun AgentChatResponseDto.toDomain(): AgentReply {
     return AgentReply(
@@ -404,3 +408,24 @@ fun AgentTaskMemoryDto.toDomain(): AgentTaskMemory {
         currentState = currentState.orEmpty().ifBlank { "idle" }
     )
 }
+
+
+/** Day 27: what the local model said. The provider is taken from the
+ * response rather than assumed - the screen claims "answered locally" only
+ * because the backend said so. */
+fun LocalChatResponseDto.toDomain(): LocalLlmAnswer = LocalLlmAnswer(
+    response = response.orEmpty(),
+    model = model.orEmpty(),
+    provider = provider.orEmpty(),
+    seconds = seconds ?: 0.0
+)
+
+/** Day 27: whether the local model can be asked. A missing field reads as
+ * the cautious answer - unknown is not the same as ready. */
+fun LocalLlmHealthDto.toDomain(): LocalLlmHealth = LocalLlmHealth(
+    available = available == true,
+    model = model.orEmpty(),
+    modelInstalled = modelInstalled == true,
+    models = models.orEmpty(),
+    error = error.orEmpty()
+)
