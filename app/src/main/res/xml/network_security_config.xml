@@ -4,4 +4,13 @@
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="false">89.167.34.196</domain>
     </domain-config>
+
+    <!-- Day 27. The local model runs on the laptop, so the backend in front
+         of it has to run there too - the VPS has no Ollama and no GPU to
+         give one. Listed here because cleartext is permitted per address:
+         without this entry the request never leaves the phone, and the
+         failure reads as "the local model is down" when it is not. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.10.35</domain>
+    </domain-config>
 </network-security-config>

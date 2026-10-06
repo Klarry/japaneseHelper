@@ -14,7 +14,29 @@ import java.util.concurrent.TimeUnit
  */
 internal object BackendHttp {
 
-    const val BASE_URL = "http://89.167.34.196:8000/"
+    /**
+     * Where this build's backend is.
+     *
+     * Two entries rather than one address and a comment, so switching is
+     * one word and neither address has to be looked up again. Whichever is
+     * chosen must also be listed in `network_security_config.xml`:
+     * cleartext is permitted per address, and without the entry the request
+     * never leaves the phone.
+     */
+    private enum class Backend(val url: String) {
+        /** The deployed one. Everything Gemini-backed is served from here. */
+        VPS("http://89.167.34.196:8000/"),
+
+        /** The same backend running on the laptop (Day 27). The local model
+         * lives on that machine and Ollama binds to its localhost, so the
+         * backend in front of it has to be there too - the VPS has neither a
+         * copy of it nor a GPU worth running one on. */
+        LAPTOP("http://192.168.10.35:8000/")
+    }
+
+    private val backend = Backend.LAPTOP
+
+    val BASE_URL = backend.url
 
     private const val CONNECT_TIMEOUT_SECONDS = 15L
     private const val WRITE_TIMEOUT_SECONDS = 15L
