@@ -18,6 +18,7 @@ import com.japanesehelper.domain.model.AgentTaskState
 import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.model.LocalLlmAnswer
 import com.japanesehelper.domain.model.LocalLlmHealth
+import com.japanesehelper.domain.model.AgentRagRun
 
 interface AgentRepository {
     suspend fun chat(message: String, strategy: AgentContextStrategy): AgentReply
@@ -51,6 +52,14 @@ interface AgentRepository {
      * different model answering through a different endpoint, and a flag
      * would invite a fallback between them. */
     suspend fun askTheLocalModel(message: String): LocalLlmAnswer
+
+    /** Day 28: the same enhanced RAG pipeline, answered by the named
+     * provider. The pair is the answer and the report of who produced it -
+     * kept together because a timing without its provider says nothing. */
+    suspend fun askTheIndexWith(
+        message: String,
+        provider: ModelProvider
+    ): Pair<AgentRagAnswer, AgentRagRun>
 
     /** Whether that model can be asked at all - for the status line. */
     suspend fun getLocalLlmHealth(): LocalLlmHealth

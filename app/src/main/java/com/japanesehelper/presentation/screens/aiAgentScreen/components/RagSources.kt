@@ -18,6 +18,7 @@ import com.japanesehelper.domain.model.AgentRagInfo
 import com.japanesehelper.domain.model.RagMode
 import com.japanesehelper.domain.model.RagStatus
 import com.japanesehelper.presentation.theme.LocalAppPadding
+import com.japanesehelper.domain.model.AgentRagRun
 
 /**
  * Under an answer that went to the document index: what the backend did with
@@ -59,6 +60,7 @@ fun RagSources(rag: AgentRagInfo, modifier: Modifier = Modifier) {
                 }
             )
 
+            rag.run?.let { run -> RagRunReport(run) }
             rag.debug?.let { debug -> RagFunnel(debug) }
             rag.chat?.let { chat -> ChatMemory(chat) }
 
@@ -295,4 +297,42 @@ private fun RagStatus.labelRes(): Int = when (this) {
     RagStatus.ANSWERED -> R.string.ai_agent_rag_status_answered
     RagStatus.INSUFFICIENT_CONTEXT -> R.string.ai_agent_rag_status_insufficient
     RagStatus.DISABLED -> R.string.ai_agent_rag_status_disabled
+}
+
+
+/**
+ * Who answered, and where the time went (Day 28).
+ *
+ * Four lines, all of them the backend's own numbers. [AgentRagRun.retrievalMs]
+ * is the half both providers share - the same index, the same filter, the
+ * same reranker - and [AgentRagRun.generationMs] is the half that differs,
+ * which is the whole point of showing them apart rather than as one total.
+ *
+ * Nothing is timed on the device: a number measured here would be the
+ * network as much as the model, and would make the two providers look more
+ * alike than they are.
+ */
+@Composable
+private fun RagRunReport(run: AgentRagRun, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.padding(top = LocalAppPadding.current.quarter)) {
+        Text(
+            text = stringResource(R.string.ai_agent_rag_provider, run.provider, run.model),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (run.isLocal) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        )
+
+        Text(
+            text = stringResource(
+                R.string.ai_agent_rag_timing,
+                run.retrievalMs,
+                run.generationMs,
+                run.totalMs
+            ),
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
 }

@@ -39,6 +39,8 @@ import javax.inject.Inject
 import com.japanesehelper.data.remote.dto.LocalChatRequestDto
 import com.japanesehelper.domain.model.LocalLlmAnswer
 import com.japanesehelper.domain.model.LocalLlmHealth
+import com.japanesehelper.data.remote.dto.RagChatRequestDto
+import com.japanesehelper.domain.model.AgentRagRun
 
 private const val HTTP_CONFLICT = 409
 
@@ -130,6 +132,17 @@ class AgentRepositoryImpl @Inject constructor(
         withContext(Dispatchers.IO) {
             agentApi.askTheLocalModel(LocalChatRequestDto(message = message)).toDomain()
         }
+
+    override suspend fun askTheIndexWith(
+        message: String,
+        provider: ModelProvider
+    ): Pair<AgentRagAnswer, AgentRagRun> = withContext(Dispatchers.IO) {
+        val reply = agentApi.askTheIndexWithProvider(
+            RagChatRequestDto(message = message, provider = provider.wire)
+        )
+
+        reply.toDomain() to reply.runOf()
+    }
 
     override suspend fun getLocalLlmHealth(): LocalLlmHealth = withContext(Dispatchers.IO) {
         agentApi.getLocalLlmHealth().toDomain()

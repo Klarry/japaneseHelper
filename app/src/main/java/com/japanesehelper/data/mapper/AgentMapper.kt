@@ -64,6 +64,8 @@ import com.japanesehelper.data.remote.dto.LocalChatResponseDto
 import com.japanesehelper.data.remote.dto.LocalLlmHealthDto
 import com.japanesehelper.domain.model.LocalLlmAnswer
 import com.japanesehelper.domain.model.LocalLlmHealth
+import com.japanesehelper.data.remote.dto.RagChatResponseDto
+import com.japanesehelper.domain.model.AgentRagRun
 
 fun AgentChatResponseDto.toDomain(): AgentReply {
     return AgentReply(
@@ -428,4 +430,37 @@ fun LocalLlmHealthDto.toDomain(): LocalLlmHealth = LocalLlmHealth(
     modelInstalled = modelInstalled == true,
     models = models.orEmpty(),
     error = error.orEmpty()
+)
+
+
+/** Day 28: a RAG answer, plus who produced it and what it cost.
+ *
+ * Mapped onto the same [AgentRagAnswer] every other RAG mode produces, so
+ * the screen draws sources and citations with the UI it already has. The
+ * provider and the timings ride along in [AgentRagRun]; nothing about them
+ * is inferred here, because the backend reports all of it.
+ */
+fun RagChatResponseDto.toDomain(): AgentRagAnswer = AgentRagAnswer(
+    answer = answer.orEmpty(),
+    ragEnabled = true,
+    mode = RagMode.ENHANCED,
+    status = RagStatus.from(ragStatus),
+    confidence = confidence.orEmpty(),
+    citedSources = sources.orEmpty().mapNotNull { it.toDomain() },
+    citations = citations.orEmpty().mapNotNull { it.toDomain() },
+    debug = AgentRagDebug(
+        retrievedCount = retrievedCount ?: 0,
+        finalCount = finalCount ?: 0,
+        bestRelevance = bestRelevance ?: 0.0,
+        answerThreshold = answerThreshold ?: 0.0
+    )
+)
+
+/** Who answered, and where the time went. */
+fun RagChatResponseDto.runOf(): AgentRagRun = AgentRagRun(
+    provider = provider.orEmpty(),
+    model = model.orEmpty(),
+    retrievalMs = timing?.retrievalMs ?: 0,
+    generationMs = timing?.generationMs ?: 0,
+    totalMs = timing?.totalMs ?: 0
 )

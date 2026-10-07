@@ -140,7 +140,17 @@ class AiAgentViewModel @Inject constructor(
     fun onProviderChanged(provider: ModelProvider) {
         if (provider == _state.value.provider) return
 
-        _state.value = _state.value.copy(provider = provider, sendError = null)
+        // Day 28: a target the chosen model cannot serve would stay selected
+        // while its chip disappeared from the row - a selection nobody can
+        // see is worse than a changed one, so it moves to the plain chat.
+        val target = _state.value.askTarget
+        val servable = if (provider.isLocal && !target.worksLocally) AskTarget.AGENT else target
+
+        _state.value = _state.value.copy(
+            provider = provider,
+            askTarget = servable,
+            sendError = null
+        )
 
         if (provider.isLocal) refreshLocalLlmHealth()
     }
@@ -172,6 +182,50 @@ class AiAgentViewModel @Inject constructor(
      * fallback: if the local model cannot answer, this shows the backend's
      * refusal and stops. Nothing here knows how to ask a cloud model.
      */
+    /**
+     * Day 28: enhanced RAG, answered by whichever model is chosen.
+     *
+     * Retrieval, filtering, reranking and citation validation happen on the
+     * backend and are the same code whichever provider is named - so what
+     * comes back is drawn with the RAG UI that already exists, and the only
+     * new thing on screen is who answered and how long each half took.
+     */
+    private fun askTheIndexWith(message: String, provider: ModelProvider) {
+        viewModelScope.launch {
+            try {
+                val (reply, run) = agentRepository.askTheIndexWith(message, provider)
+                val updatedMessages = currentMessages() +
+                    AgentMessage(role = AgentMessageRole.USER, content = message) +
+                    AgentMessage(
+                        role = AgentMessageRole.ASSISTANT,
+                        content = reply.answer,
+                        rag = AgentRagInfo(
+                            sources = reply.sources,
+                            chunkCount = reply.debug?.finalCount ?: 0,
+                            mode = RagMode.ENHANCED,
+                            debug = reply.debug,
+                            status = reply.status,
+                            citedSources = reply.citedSources,
+                            citations = reply.citations,
+                            run = run
+                        )
+                    )
+
+                _state.value = _state.value.copy(
+                    message = "",
+                    isSending = false,
+                    history = AgentHistoryUiState.Loaded(updatedMessages)
+                )
+            } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                _state.value = _state.value.copy(isSending = false, sendError = e.toErrorMessage())
+
+                // A local provider that could not answer is worth re-reading:
+                // the status line should stop saying Connected.
+                if (provider.isLocal) refreshLocalLlmHealth()
+            }
+        }
+    }
+
     private fun askTheLocalModel(message: String) {
         viewModelScope.launch {
             try {
@@ -211,9 +265,20 @@ class AiAgentViewModel @Inject constructor(
 
         _state.value = _state.value.copy(isSending = true, sendError = null)
 
-        // Checked before anything else, and it is the only branch that can
-        // be taken in this mode: no ask target, no strategy and no failure
-        // sends this question to the cloud instead.
+        // Day 28, and first because it is the narrower rule. The enhanced
+        // pipeline is the one the backend can answer with either model, so
+        // this chip - and only this chip - carries the provider, and it
+        // carries it in both directions: Local sends provider=ollama to
+        // /rag/chat, which is still a question answered on that machine.
+        // The other four chips are untouched.
+        if (_state.value.askTarget == AskTarget.RAG_ENHANCED) {
+            askTheIndexWith(message, _state.value.provider)
+            return
+        }
+
+        // Day 27. Everything else in local mode goes to the plain local
+        // chat: no ask target, no strategy and no failure sends it to the
+        // cloud instead.
         if (_state.value.provider.isLocal) {
             askTheLocalModel(message)
             return

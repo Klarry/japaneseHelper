@@ -92,6 +92,8 @@
     <string name="ai_agent_local_llm_connected">Local LLM: %1$s · Status: Connected</string>
     <string name="ai_agent_local_llm_not_pulled">Local LLM: %1$s is not pulled on the backend</string>
     <string name="ai_agent_local_llm_unavailable">Local LLM: unavailable</string>
+    <string name="ai_agent_rag_provider">Provider: %1$s · Model: %2$s</string>
+    <string name="ai_agent_rag_timing">Retrieval: %1$d ms · Generation: %2$d ms · Total: %3$d ms</string>
     <string name="ai_agent_chat_goal">Goal: %1$s</string>
     <string name="ai_agent_chat_constraints">Constraints: %1$s</string>
     <string name="ai_agent_chat_decisions">Decisions: %1$s</string>

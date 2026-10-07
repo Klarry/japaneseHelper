@@ -32,7 +32,11 @@ import com.japanesehelper.presentation.viewmodel.screendata.AskTarget
 fun AskTargetSwitch(
     target: AskTarget,
     onChanged: (AskTarget) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** Day 28: with a local model chosen, only the targets it can actually
+     * serve are offered. Showing a chip that would quietly go to the cloud -
+     * or quietly fail - is worse than not showing it. */
+    localOnly: Boolean = false
 ) {
     Row(
         modifier = modifier
@@ -47,7 +51,7 @@ fun AskTargetSwitch(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        AskTarget.entries.forEach { option ->
+        AskTarget.entries.filter { !localOnly || it.worksLocally }.forEach { option ->
             FilterChip(
                 selected = target == option,
                 onClick = { onChanged(option) },

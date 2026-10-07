@@ -60,6 +60,7 @@ import org.mockito.kotlin.whenever
 import com.japanesehelper.domain.model.LocalLlmAnswer
 import com.japanesehelper.domain.model.LocalLlmHealth
 import com.japanesehelper.domain.model.ModelProvider
+import com.japanesehelper.domain.model.AgentRagRun
 
 class AiAgentViewModelTest {
 
@@ -164,6 +165,11 @@ class AiAgentViewModelTest {
         override suspend fun askTheLocalModel(message: String): LocalLlmAnswer =
             localAnswer ?: throw IllegalStateException("Local LLM is unavailable")
         override suspend fun getLocalLlmHealth(): LocalLlmHealth = localHealth
+        override suspend fun askTheIndexWith(
+            message: String,
+            provider: ModelProvider
+        ): Pair<AgentRagAnswer, AgentRagRun> =
+            AgentRagAnswer(answer = "from the index") to AgentRagRun(provider = provider.wire)
         override suspend fun getTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun clearTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun requestTaskTransition(stage: AgentTaskStage): AgentTaskState =
@@ -2228,5 +2234,179 @@ class AiAgentViewModelTest {
 
         verify(repository, times(1)).chat(any(), any())
         verify(repository, never()).askTheLocalModel(any())
+    }
+
+
+    // --- Day 28: the index, answered by either model ----------------------
+
+    private fun ragRun(provider: String = "ollama", model: String = "qwen3:4b") = AgentRagRun(
+        provider = provider,
+        model = model,
+        retrievalMs = 123,
+        generationMs = 2450,
+        totalMs = 2573
+    )
+
+    private fun indexAnswer(answer: String = "The registry starts each server as a subprocess.") =
+        AgentRagAnswer(
+            answer = answer,
+            ragEnabled = true,
+            mode = RagMode.ENHANCED,
+            status = RagStatus.ANSWERED,
+            confidence = "medium",
+            citedSources = listOf(AgentRagSource(file = "app/services/mcp_registry.py")),
+            citations = listOf(AgentRagCitation(quote = QUOTE)),
+            debug = AgentRagDebug(retrievedCount = 10, finalCount = 3)
+        )
+
+    @Test
+    fun `the enhanced chip on cloud asks the index as gemini`() = runTest {
+        given()
+        whenever(repository.askTheIndexWith(any(), any())).thenReturn(indexAnswer() to ragRun("gemini", "gemini-3.5-flash"))
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
+        viewModel.onMessageChanged("Какие MCP-серверы зарегистрированы?")
+
+        viewModel.send()
+
+        verify(repository, times(1)).askTheIndexWith(
+            "Какие MCP-серверы зарегистрированы?",
+            ModelProvider.CLOUD
+        )
+        verify(repository, never()).askTheLocalModel(any())
+        verify(repository, never()).chat(any(), any())
+    }
+
+    @Test
+    fun `the enhanced chip on local asks the index as ollama`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth()).thenReturn(localHealth())
+        whenever(repository.askTheIndexWith(any(), any())).thenReturn(indexAnswer() to ragRun())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+        viewModel.onMessageChanged("Какие MCP-серверы зарегистрированы?")
+
+        viewModel.send()
+
+        verify(repository, times(1)).askTheIndexWith(any(), eq(ModelProvider.LOCAL))
+        // Retrieval belongs to the backend either way: the device never
+        // reaches for the plain local chat here, which has no index at all.
+        verify(repository, never()).askTheLocalModel(any())
+    }
+
+    /** The wire name is the backend's, and the enum is the only place that
+     * knows it. A chip renamed on screen must not change what is sent. */
+    @Test
+    fun `the provider is sent under the name the backend uses`() {
+        assertEquals("gemini", ModelProvider.CLOUD.wire)
+        assertEquals("ollama", ModelProvider.LOCAL.wire)
+    }
+
+    @Test
+    fun `the answer is drawn with the existing RAG readout`() = runTest {
+        given()
+        whenever(repository.askTheIndexWith(any(), any())).thenReturn(indexAnswer() to ragRun())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
+        viewModel.onMessageChanged("q")
+
+        viewModel.send()
+
+        val messages = (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages
+        val rag = messages.last().rag
+
+        assertNotNull(rag)
+        assertEquals(RagStatus.ANSWERED, rag?.status)
+        assertEquals(1, rag?.citations?.size)
+        assertEquals(QUOTE, rag?.citations?.first()?.quote)
+        assertTrue(rag?.hasEvidence == true)
+    }
+
+    @Test
+    fun `the readout carries the provider, the model and both halves of the time`() = runTest {
+        given()
+        whenever(repository.askTheIndexWith(any(), any())).thenReturn(indexAnswer() to ragRun())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
+        viewModel.onMessageChanged("q")
+
+        viewModel.send()
+
+        val run = (viewModel.state.value.history as AgentHistoryUiState.Loaded)
+            .messages.last().rag?.run
+
+        assertEquals("ollama", run?.provider)
+        assertEquals("qwen3:4b", run?.model)
+        assertEquals(123, run?.retrievalMs)
+        assertEquals(2450, run?.generationMs)
+        assertEquals(2573, run?.totalMs)
+        assertTrue(run?.isLocal == true)
+    }
+
+    /** Day 27's rule survives Day 28: a local question that fails is a
+     * failure, not a cloud answer. */
+    @Test
+    fun `a local index question that fails does not fall back`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth()).thenReturn(localHealth())
+        whenever(repository.askTheIndexWith(any(), any()))
+            .thenThrow(RuntimeException("Local LLM is unavailable"))
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+        viewModel.onMessageChanged("q")
+
+        viewModel.send()
+
+        assertNotNull(viewModel.state.value.sendError)
+        verify(repository, never()).chat(any(), any())
+        verify(repository, never()).askWithRag(any(), any(), any())
+        verify(repository, never()).askTheChat(any())
+    }
+
+    /** Switching to the local model with a cloud-only chip selected would
+     * otherwise leave a selection the row no longer shows. */
+    @Test
+    fun `a chip the local model cannot serve moves rather than vanishing`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth()).thenReturn(localHealth())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.CHAT)
+
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+
+        assertEquals(AskTarget.AGENT, viewModel.state.value.askTarget)
+    }
+
+    @Test
+    fun `the enhanced chip survives the switch, because it works locally`() = runTest {
+        given()
+        whenever(repository.getLocalLlmHealth()).thenReturn(localHealth())
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
+
+        viewModel.onProviderChanged(ModelProvider.LOCAL)
+
+        assertEquals(AskTarget.RAG_ENHANCED, viewModel.state.value.askTarget)
+        assertTrue(AskTarget.RAG_ENHANCED.worksLocally)
+        assertFalse(AskTarget.RAG_BASELINE.worksLocally)
+        assertFalse(AskTarget.CHAT.worksLocally)
+    }
+
+    @Test
+    fun `the other RAG chips still go where they always did`() = runTest {
+        given()
+        whenever(repository.askWithRag(any(), any(), any())).thenReturn(
+            AgentRagAnswer(answer = "baseline", mode = RagMode.BASELINE)
+        )
+        val viewModel = createViewModel()
+        viewModel.onAskTargetChanged(AskTarget.RAG_BASELINE)
+        viewModel.onMessageChanged("q")
+
+        viewModel.send()
+
+        verify(repository, times(1)).askWithRag("q", RagMode.BASELINE, 5)
+        verify(repository, never()).askTheIndexWith(any(), any())
     }
 }

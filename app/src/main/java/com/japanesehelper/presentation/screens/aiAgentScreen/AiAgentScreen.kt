@@ -153,15 +153,15 @@ fun AiAgentScreen(
                     onChanged = viewModel::onProviderChanged
                 )
 
-                // Hidden while the local model answers: these chips name the
-                // cloud pipelines, and leaving them visible would suggest a
-                // choice that this mode does not have.
-                if (!state.provider.isLocal) {
-                    AskTargetSwitch(
-                        target = state.askTarget,
-                        onChanged = viewModel::onAskTargetChanged
-                    )
-                }
+                // Day 27 hid this row in local mode, because every chip on
+                // it named a cloud pipeline. Day 28 made that untrue: the
+                // enhanced pipeline runs locally too. So the row is back,
+                // showing only what the chosen model can actually serve.
+                AskTargetSwitch(
+                    target = state.askTarget,
+                    onChanged = viewModel::onAskTargetChanged,
+                    localOnly = state.provider.isLocal
+                )
 
                 OutlinedTextField(
                     value = state.message,

@@ -14,9 +14,15 @@ package com.japanesehelper.domain.model
  * a cloud question, because then the answer would no longer mean what the
  * switch says it means.
  */
-enum class ModelProvider {
-    CLOUD,
-    LOCAL;
+enum class ModelProvider(
+    /** What goes on a /rag/chat request (Day 28): the backend's own name
+     * for this provider. The chips say Cloud and Local LLM because that is
+     * what the person is choosing between; this is what it means to the
+     * pipeline. */
+    val wire: String
+) {
+    CLOUD("gemini"),
+    LOCAL("ollama");
 
     val isLocal: Boolean get() = this == LOCAL
 }

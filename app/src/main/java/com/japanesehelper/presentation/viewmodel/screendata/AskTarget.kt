@@ -44,4 +44,16 @@ enum class AskTarget(val ragMode: RagMode?, val isChat: Boolean = false) {
 
     /** Whether the question goes to the mini chat instead. */
     val asksTheChat: Boolean get() = isChat
+
+    /**
+     * Whether a model on the backend's own machine can serve this target
+     * (Day 28).
+     *
+     * [AGENT] can, as the plain local chat of Day 27. [RAG_ENHANCED] can,
+     * because the backend will run the whole retrieval pipeline and hand
+     * the finished prompt to whichever model was named. The other three
+     * cannot: RAG OFF and BASELINE exist to compare Gemini against itself,
+     * and the mini chat is a Gemini conversation with its own memory.
+     */
+    val worksLocally: Boolean get() = this == AGENT || this == RAG_ENHANCED
 }

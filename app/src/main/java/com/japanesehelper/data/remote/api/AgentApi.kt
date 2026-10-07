@@ -21,6 +21,8 @@ import com.japanesehelper.data.remote.dto.AgentUserProfileDto
 import com.japanesehelper.data.remote.dto.LocalChatRequestDto
 import com.japanesehelper.data.remote.dto.LocalChatResponseDto
 import com.japanesehelper.data.remote.dto.LocalLlmHealthDto
+import com.japanesehelper.data.remote.dto.RagChatRequestDto
+import com.japanesehelper.data.remote.dto.RagChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentUserProfileRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyResponseDto
@@ -162,4 +164,12 @@ interface AgentApi {
      * down" and "this check is broken" are different things. */
     @GET("local-llm/health")
     suspend fun getLocalLlmHealth(): LocalLlmHealthDto
+
+    /** Day 28: the existing RAG pipeline, with the generator named per
+     * request. Retrieval, filtering, reranking and citation validation are
+     * the backend's either way - this only says who writes the answer. */
+    @POST("rag/chat")
+    suspend fun askTheIndexWithProvider(
+        @Body request: RagChatRequestDto
+    ): RagChatResponseDto
 }

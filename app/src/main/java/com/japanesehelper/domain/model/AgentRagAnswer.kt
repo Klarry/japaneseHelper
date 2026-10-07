@@ -184,7 +184,11 @@ data class AgentRagInfo(
     /** Day 25: the mini chat's own report for this turn - the task memory as
      * it stands and the funnel's counts. Null for every other mode, because
      * there was no conversation to report on. */
-    val chat: AgentMiniChatAnswer? = null
+    val chat: AgentMiniChatAnswer? = null,
+    /** Day 28: which model wrote this answer and how long each half took.
+     * Null for the pipelines that do not report it, because there is
+     * nothing honest to draw in its place. */
+    val run: AgentRagRun? = null
 ) {
     /** The sources to draw, structured when the backend sent them that way.
      *
@@ -197,4 +201,26 @@ data class AgentRagInfo(
 
     /** Whether there is anything at all to show under the answer. */
     val hasEvidence: Boolean get() = sourcesToShow.isNotEmpty() || citations.isNotEmpty()
+}
+
+/**
+ * Who answered a RAG question, and what it cost (Day 28).
+ *
+ * Retrieval happened on the backend against the same FAISS index whichever
+ * model was named, so [retrievalMs] is the half the two providers share and
+ * [generationMs] is the half that differs. Both are the backend's own
+ * measurements - nothing here is timed on the device, where the number
+ * would be the network as much as the model.
+ */
+data class AgentRagRun(
+    val provider: String = "",
+    val model: String = "",
+    val retrievalMs: Int = 0,
+    val generationMs: Int = 0,
+    val totalMs: Int = 0
+) {
+    /** Whether the answer was written by a model on the backend's own
+     * machine. Read from what the backend reported, never assumed from the
+     * chip that was lit. */
+    val isLocal: Boolean get() = provider.equals("ollama", ignoreCase = true)
 }
