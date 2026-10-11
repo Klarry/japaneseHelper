@@ -19,6 +19,7 @@ import com.japanesehelper.domain.model.AgentUserProfile
 import com.japanesehelper.domain.model.LocalLlmAnswer
 import com.japanesehelper.domain.model.LocalLlmHealth
 import com.japanesehelper.domain.model.AgentRagRun
+import com.japanesehelper.domain.model.ModelProvider
 
 interface AgentRepository {
     suspend fun chat(message: String, strategy: AgentContextStrategy): AgentReply
