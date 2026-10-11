@@ -1,6 +1,7 @@
 package com.japanesehelper.data.repository
 
 import com.japanesehelper.data.mapper.parseTaskRefusal
+import com.japanesehelper.data.mapper.runOf
 import com.japanesehelper.data.mapper.toDomain
 import com.japanesehelper.data.mapper.toRequestDto
 import com.japanesehelper.data.remote.api.AgentApi
@@ -41,6 +42,7 @@ import com.japanesehelper.domain.model.LocalLlmAnswer
 import com.japanesehelper.domain.model.LocalLlmHealth
 import com.japanesehelper.data.remote.dto.RagChatRequestDto
 import com.japanesehelper.domain.model.AgentRagRun
+import com.japanesehelper.domain.model.ModelProvider
 
 private const val HTTP_CONFLICT = 409
 
