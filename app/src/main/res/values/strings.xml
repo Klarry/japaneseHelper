@@ -17,6 +17,7 @@
     <string name="home_temperature_description_button">Temperature Description</string>
     <string name="home_model_comparison_button">Model Comparison</string>
     <string name="home_ai_agent_button">AI Agent</string>
+    <string name="home_support_button">Support assistant</string>
 
     <string name="ai_explanation_title">AI Explanation</string>
     <string name="ai_explanation_without_constraints_caption">Without constraints</string>
@@ -210,4 +211,31 @@
         <item quantity="one">%1$d message in this conversation</item>
         <item quantity="other">%1$d messages in this conversation</item>
     </plurals>
+    <!-- Day 33: support assistant -->
+    <string name="support_title">Support assistant</string>
+    <string name="support_intro">The backend reads the ticket through MCP and the help centre through RAG. Nothing is answered on the device.</string>
+    <string name="support_ticket_label">Ticket ID</string>
+    <string name="support_ticket_hint">For example TICKET-1042</string>
+    <string name="support_ticket_invalid">Use the format TICKET-1042</string>
+    <string name="support_demo_tickets">Demo tickets:</string>
+    <string name="support_question_label">Question</string>
+    <string name="support_question_placeholder">Why can\'t I sign in?</string>
+    <string name="support_send_button">Ask support</string>
+    <string name="support_loading">Reading the ticket and the help centre…</string>
+    <string name="support_ticket_not_found">Ticket %1$s was not found. Check the number - no answer was generated.</string>
+    <string name="support_answer_title">Answer</string>
+    <string name="support_insufficient_docs">The help centre has no instructions for this; the answer relies on the ticket only.</string>
+    <string name="support_context_loaded">Ticket %1$s · context loaded</string>
+    <string name="support_context_missing">Ticket %1$s · no ticket context</string>
+    <string name="support_provider_local">Local LLM · %1$s · %2$d ms</string>
+    <string name="support_provider_cloud">Cloud · %1$s · %2$d ms</string>
+    <string name="support_tools_used">MCP tools: %1$s</string>
+    <string name="support_ticket_title">Ticket %1$s</string>
+    <string name="support_ticket_subject">Subject: %1$s</string>
+    <string name="support_ticket_category">Category: %1$s</string>
+    <string name="support_ticket_status">Status: %1$s</string>
+    <string name="support_ticket_platform">Platform: %1$s</string>
+    <string name="support_ticket_attempts">Already tried: %1$s</string>
+    <string name="support_ticket_facts_used">Ticket facts used: %1$s</string>
+    <string name="support_docs_title">Help centre</string>
 </resources>

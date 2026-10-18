@@ -11,6 +11,7 @@ import com.japanesehelper.presentation.screens.aiExplanationScreen.AiExplanation
 import com.japanesehelper.presentation.screens.homeScreen.HomeScreen
 import com.japanesehelper.presentation.screens.kanjiWordSetScreen.KanjiWordSetScreen
 import com.japanesehelper.presentation.screens.modelComparisonScreen.ModelComparisonScreen
+import com.japanesehelper.presentation.screens.supportScreen.SupportScreen
 import com.japanesehelper.presentation.screens.temperatureDescriptionScreen.TemperatureDescriptionScreen
 
 @Composable
@@ -60,6 +61,9 @@ fun AppNavHost() {
         }
         composable(Screens.AiAgent.route) {
             AiAgentScreen(navController)
+        }
+        composable(Screens.Support.route) {
+            SupportScreen(navController)
         }
     }
 }

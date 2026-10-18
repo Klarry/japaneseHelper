@@ -47,4 +47,6 @@ sealed class Screens(val route: String) {
     }
 
     data object AiAgent : Screens("ai_agent")
+
+    data object Support : Screens("support")
 }

@@ -20,6 +20,7 @@ import com.japanesehelper.domain.model.LocalLlmAnswer
 import com.japanesehelper.domain.model.LocalLlmHealth
 import com.japanesehelper.domain.model.AgentRagRun
 import com.japanesehelper.domain.model.ModelProvider
+import com.japanesehelper.domain.model.SupportAnswer
 
 interface AgentRepository {
     suspend fun chat(message: String, strategy: AgentContextStrategy): AgentReply
@@ -64,6 +65,16 @@ interface AgentRepository {
 
     /** Whether that model can be asked at all - for the status line. */
     suspend fun getLocalLlmHealth(): LocalLlmHealth
+
+    /**
+     * Day 33: ask the support assistant about [ticketId].
+     *
+     * Throws [com.japanesehelper.domain.model.SupportTicketNotFound] when the
+     * backend has no such ticket, and
+     * [com.japanesehelper.domain.model.SupportRequestFailed] when it names
+     * another reason not to answer. Nothing is answered on the device.
+     */
+    suspend fun askSupport(message: String, ticketId: String, provider: ModelProvider): SupportAnswer
 
     suspend fun getTaskState(): AgentTaskState
     suspend fun clearTaskState(): AgentTaskState

@@ -61,6 +61,7 @@ import com.japanesehelper.domain.model.LocalLlmAnswer
 import com.japanesehelper.domain.model.LocalLlmHealth
 import com.japanesehelper.domain.model.ModelProvider
 import com.japanesehelper.domain.model.AgentRagRun
+import com.japanesehelper.domain.model.SupportAnswer
 
 class AiAgentViewModelTest {
 
@@ -170,6 +171,11 @@ class AiAgentViewModelTest {
             provider: ModelProvider
         ): Pair<AgentRagAnswer, AgentRagRun> =
             AgentRagAnswer(answer = "from the index") to AgentRagRun(provider = provider.wire)
+        override suspend fun askSupport(
+            message: String,
+            ticketId: String,
+            provider: ModelProvider
+        ): SupportAnswer = SupportAnswer(answer = "from support", ticketId = ticketId)
         override suspend fun getTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun clearTaskState(): AgentTaskState = AgentTaskState()
         override suspend fun requestTaskTransition(stage: AgentTaskStage): AgentTaskState =

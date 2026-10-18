@@ -20,6 +20,7 @@ import com.japanesehelper.presentation.screens.homeScreen.components.KanjiWordSe
 import com.japanesehelper.presentation.screens.homeScreen.components.LevelDropdownMenu
 import com.japanesehelper.presentation.screens.homeScreen.components.ModelComparisonButton
 import com.japanesehelper.presentation.screens.homeScreen.components.RandomWordCard
+import com.japanesehelper.presentation.screens.homeScreen.components.SupportButton
 import com.japanesehelper.presentation.screens.homeScreen.components.TemperatureDescriptionButton
 import com.japanesehelper.presentation.theme.LocalAppPadding
 
@@ -48,6 +49,7 @@ fun HomeScreen(navController: NavController) {
             }
 
             AiAgentButton(navController = navController, modifier = Modifier.fillMaxWidth())
+            SupportButton(navController = navController, modifier = Modifier.fillMaxWidth())
 
             LevelDropdownMenu()
             RandomWordCard()

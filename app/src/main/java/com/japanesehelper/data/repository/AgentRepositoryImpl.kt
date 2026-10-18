@@ -1,5 +1,6 @@
 package com.japanesehelper.data.repository
 
+import com.japanesehelper.data.mapper.parseSupportError
 import com.japanesehelper.data.mapper.parseTaskRefusal
 import com.japanesehelper.data.mapper.runOf
 import com.japanesehelper.data.mapper.toDomain
@@ -43,8 +44,13 @@ import com.japanesehelper.domain.model.LocalLlmHealth
 import com.japanesehelper.data.remote.dto.RagChatRequestDto
 import com.japanesehelper.domain.model.AgentRagRun
 import com.japanesehelper.domain.model.ModelProvider
+import com.japanesehelper.data.remote.dto.SupportChatRequestDto
+import com.japanesehelper.domain.model.SupportAnswer
+import com.japanesehelper.domain.model.SupportRequestFailed
+import com.japanesehelper.domain.model.SupportTicketNotFound
 
 private const val HTTP_CONFLICT = 409
+private const val TICKET_NOT_FOUND = "ticket_not_found"
 
 class AgentRepositoryImpl @Inject constructor(
     private val agentApi: AgentApi
@@ -148,6 +154,37 @@ class AgentRepositoryImpl @Inject constructor(
 
     override suspend fun getLocalLlmHealth(): LocalLlmHealth = withContext(Dispatchers.IO) {
         agentApi.getLocalLlmHealth().toDomain()
+    }
+
+    override suspend fun askSupport(
+        message: String,
+        ticketId: String,
+        provider: ModelProvider
+    ): SupportAnswer = withContext(Dispatchers.IO) {
+        try {
+            agentApi.askSupport(
+                SupportChatRequestDto(message = message, ticketId = ticketId, provider = provider.wire)
+            ).toDomain()
+        } catch (e: HttpException) {
+            throw supportFailure(e, ticketId)
+        }
+    }
+
+    /**
+     * The backend's reason for not answering, as something the screen can
+     * show: a missing ticket is its own case, every other named reason keeps
+     * the backend's words. A body that is not a support error leaves the
+     * original exception as it was.
+     */
+    private fun supportFailure(e: HttpException, ticketId: String): Exception {
+        val error = e.response()?.errorBody()?.string()?.let(::parseSupportError) ?: return e
+        val detail = error.detail.orEmpty()
+
+        return if (error.error == TICKET_NOT_FOUND) {
+            SupportTicketNotFound(error.ticketId?.takeIf { it.isNotBlank() } ?: ticketId, detail)
+        } else {
+            SupportRequestFailed(error.error.orEmpty(), detail)
+        }
     }
 
     override suspend fun getTaskState(): AgentTaskState = withContext(Dispatchers.IO) {

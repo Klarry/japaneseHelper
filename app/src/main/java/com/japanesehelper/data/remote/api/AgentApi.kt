@@ -23,6 +23,8 @@ import com.japanesehelper.data.remote.dto.LocalChatResponseDto
 import com.japanesehelper.data.remote.dto.LocalLlmHealthDto
 import com.japanesehelper.data.remote.dto.RagChatRequestDto
 import com.japanesehelper.data.remote.dto.RagChatResponseDto
+import com.japanesehelper.data.remote.dto.SupportChatRequestDto
+import com.japanesehelper.data.remote.dto.SupportChatResponseDto
 import com.japanesehelper.data.remote.dto.AgentUserProfileRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyRequestDto
 import com.japanesehelper.data.remote.dto.AgentStrategyResponseDto
@@ -172,4 +174,12 @@ interface AgentApi {
     suspend fun askTheIndexWithProvider(
         @Body request: RagChatRequestDto
     ): RagChatResponseDto
+
+    /** Day 33: the support assistant. The backend reads the ticket through
+     * its CRM, searches the help centre and answers; the device sends the
+     * question, the ticket id and which model should answer. */
+    @POST("support/chat")
+    suspend fun askSupport(
+        @Body request: SupportChatRequestDto
+    ): SupportChatResponseDto
 }
