@@ -48,7 +48,7 @@ class TemperatureDescriptionViewModelTest {
     }
 
     @Test
-    fun `nothing is requested when the screen opens`() {
+    fun `nothing is requested when the screen opens`() = runTest {
         val viewModel = createViewModel()
 
         SUPPORTED_TEMPERATURES.forEach { temperature ->

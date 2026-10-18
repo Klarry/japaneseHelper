@@ -1,5 +1,6 @@
 package com.japanesehelper
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import com.japanesehelper.domain.model.Description
 import com.japanesehelper.domain.repository.DescriptionRepository
@@ -10,9 +11,13 @@ import com.japanesehelper.presentation.viewmodel.screendata.DescriptionSuccess
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.After
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.mockito.MockedStatic
+import org.mockito.Mockito
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
@@ -26,6 +31,20 @@ class AiExplanationViewModelTest {
     val coroutineRule = MainDispatcherRule()
 
     private val repository: DescriptionRepository = mock()
+
+    /** The ViewModel writes its demo log with android.util.Log, which the
+     * unit-test android.jar does not implement. */
+    private lateinit var log: MockedStatic<Log>
+
+    @Before
+    fun muteLog() {
+        log = Mockito.mockStatic(Log::class.java)
+    }
+
+    @After
+    fun restoreLog() {
+        log.close()
+    }
 
     private fun createViewModel(
         word: String = "学生",
@@ -70,13 +89,14 @@ class AiExplanationViewModelTest {
 
     @Test
     fun `retry re-runs the request`() = runTest {
-        whenever(repository.getDescription("student")).thenThrow(RuntimeException("boom"))
+        // Both answers up front: re-stubbing would call the mock, which
+        // would throw "boom" again in the middle of the stubbing.
+        whenever(repository.getDescription("student"))
+            .thenThrow(RuntimeException("boom"))
+            .thenReturn(Description(uncontrolled = "ok", controlled = "ok"))
 
         val viewModel = createViewModel(meaning = "student")
         assertTrue(viewModel.state.value is DescriptionError)
-
-        whenever(repository.getDescription("student"))
-            .thenReturn(Description(uncontrolled = "ok", controlled = "ok"))
 
         viewModel.retry()
 

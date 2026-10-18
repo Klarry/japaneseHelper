@@ -755,10 +755,11 @@ class AiAgentViewModel @Inject constructor(
             val taskState = agentRepository.getTaskState()
             // The refusal comes back with the state, so the reason a task did
             // not advance is still on the screen after the app is reopened.
+            // contextError is left alone: it may be the context's own
+            // failure, and a task state that loaded says nothing about that.
             _state.value = _state.value.copy(
                 taskState = taskState,
-                taskRefusal = taskState.blocked,
-                contextError = null
+                taskRefusal = taskState.blocked
             )
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             _state.value = _state.value.copy(contextError = e.toErrorMessage())

@@ -250,6 +250,7 @@ class AiAgentViewModelTest {
     fun `a context loading failure is shown without breaking the conversation`() = runTest {
         whenever(repository.getHistory()).thenReturn(listOf(message("Explain 学")))
         whenever(repository.getContext()).thenThrow(RuntimeException("context unavailable"))
+        whenever(repository.getTaskState()).thenReturn(task())
 
         val viewModel = createViewModel()
 
@@ -1024,7 +1025,7 @@ class AiAgentViewModelTest {
         given()
         whenever(repository.getTaskState()).thenReturn(task(stage = "planning", allowedNext = listOf("execution")))
         whenever(repository.requestTaskTransition(AgentTaskStage.DONE))
-            .thenThrow(AgentTaskTransitionRefused(refusal()))
+            .thenAnswer { throw AgentTaskTransitionRefused(refusal()) }
         val viewModel = createViewModel()
 
         viewModel.requestTaskTransition(AgentTaskStage.DONE)
@@ -1037,7 +1038,7 @@ class AiAgentViewModelTest {
         given()
         whenever(repository.getTaskState()).thenReturn(task(stage = "planning"))
         whenever(repository.requestTaskTransition(AgentTaskStage.DONE))
-            .thenThrow(AgentTaskTransitionRefused(refusal()))
+            .thenAnswer { throw AgentTaskTransitionRefused(refusal()) }
         val viewModel = createViewModel()
 
         viewModel.requestTaskTransition(AgentTaskStage.DONE)
@@ -1054,7 +1055,7 @@ class AiAgentViewModelTest {
         given()
         whenever(repository.getTaskState()).thenReturn(task(stage = "planning", currentStep = "составляем план"))
         whenever(repository.requestTaskTransition(AgentTaskStage.DONE))
-            .thenThrow(AgentTaskTransitionRefused(refusal()))
+            .thenAnswer { throw AgentTaskTransitionRefused(refusal()) }
         val viewModel = createViewModel()
 
         viewModel.requestTaskTransition(AgentTaskStage.DONE)
@@ -1070,7 +1071,7 @@ class AiAgentViewModelTest {
         given()
         whenever(repository.getTaskState()).thenReturn(task(stage = "planning"))
         whenever(repository.requestTaskTransition(AgentTaskStage.DONE))
-            .thenThrow(AgentTaskTransitionRefused(refusal()))
+            .thenAnswer { throw AgentTaskTransitionRefused(refusal()) }
         val viewModel = createViewModel()
 
         viewModel.requestTaskTransition(AgentTaskStage.DONE)
@@ -1152,15 +1153,17 @@ class AiAgentViewModelTest {
     fun `approving a plan in the wrong stage is refused by the backend, not here`() = runTest {
         given()
         whenever(repository.getTaskState()).thenReturn(task(stage = "execution"))
-        whenever(repository.approveTaskPlan(any())).thenThrow(
-            AgentTaskTransitionRefused(
+        // A refusal is a checked exception to Mockito, which will not
+        // thenThrow it from a method that declares none; an answer can.
+        whenever(repository.approveTaskPlan(any())).thenAnswer {
+            throw AgentTaskTransitionRefused(
                 AgentTaskRefusal(
                     message = "The task is in 'execution'",
                     currentStage = "execution",
                     unmetCondition = "the task is not in 'planning'"
                 )
             )
-        )
+        }
         val viewModel = createViewModel()
 
         viewModel.startEditingPlan()
@@ -1231,7 +1234,7 @@ class AiAgentViewModelTest {
     // --- the RAG switch (Day 22) -------------------------------------------
 
     @Test
-    fun `with RAG off the question goes to the agent exactly as before`() {
+    fun `with RAG off the question goes to the agent exactly as before`() = runTest {
         given()
         whenever(repository.chat(any(), any())).thenReturn(reply("обычный ответ"))
         val viewModel = createViewModel()
@@ -1247,7 +1250,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `with RAG on the question goes to the document index and comes back with sources`() {
+    fun `with RAG on the question goes to the document index and comes back with sources`() = runTest {
         given()
         whenever(repository.askWithRag(any(), any(), any())).thenReturn(
             AgentRagAnswer(
@@ -1276,7 +1279,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `the same question can be asked in both modes`() {
+    fun `the same question can be asked in both modes`() = runTest {
         given()
         whenever(repository.chat(any(), any())).thenReturn(reply("без источников"))
         whenever(repository.askWithRag(any(), any(), any())).thenReturn(
@@ -1299,7 +1302,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `a failing RAG request shows an error and keeps the conversation`() {
+    fun `a failing RAG request shows an error and keeps the conversation`() = runTest {
         given()
         whenever(repository.askWithRag(any(), any(), any())).thenThrow(RuntimeException("503"))
         val viewModel = createViewModel()
@@ -1316,7 +1319,7 @@ class AiAgentViewModelTest {
     // --- the three modes (Day 23) ------------------------------------------
 
     @Test
-    fun `the screen starts on the agent so it behaves as it always has`() {
+    fun `the screen starts on the agent so it behaves as it always has`() = runTest {
         given()
         val viewModel = createViewModel()
 
@@ -1325,7 +1328,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `RAG OFF asks the index endpoint with retrieval switched off`() {
+    fun `RAG OFF asks the index endpoint with retrieval switched off`() = runTest {
         given()
         whenever(repository.askWithRag(any(), any(), any())).thenReturn(
             AgentRagAnswer(answer = "From the model alone.", ragEnabled = false, mode = RagMode.OFF)
@@ -1345,7 +1348,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `the agent keeps its own path and its tools`() {
+    fun `the agent keeps its own path and its tools`() = runTest {
         given()
         whenever(repository.chat(any(), any())).thenReturn(reply("обычный ответ"))
         val viewModel = createViewModel()
@@ -1361,23 +1364,24 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `enhanced mode asks the backend for the enhanced pipeline`() {
+    fun `enhanced mode asks the backend for the enhanced pipeline`() = runTest {
         given()
-        whenever(repository.askWithRag(any(), any(), any())).thenReturn(enhancedAnswer())
+        givenTheIndexAnswers(enhancedAnswer())
         val viewModel = createViewModel()
         viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
         viewModel.onMessageChanged("Как работает MCP в проекте?")
 
         viewModel.send()
 
-        verify(repository, times(1)).askWithRag("Как работает MCP в проекте?", RagMode.ENHANCED, 5)
+        verify(repository, times(1)).askTheIndexWith("Как работает MCP в проекте?", ModelProvider.CLOUD)
+        verify(repository, never()).askWithRag(any(), any(), any())
         verify(repository, never()).chat(any(), any())
     }
 
     @Test
-    fun `the rewritten query the backend reports is kept next to the answer`() {
+    fun `the rewritten query the backend reports is kept next to the answer`() = runTest {
         given()
-        whenever(repository.askWithRag(any(), any(), any())).thenReturn(enhancedAnswer())
+        givenTheIndexAnswers(enhancedAnswer())
         val viewModel = createViewModel()
         viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
         viewModel.onMessageChanged("Как работает MCP в проекте?")
@@ -1391,9 +1395,9 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `the three counts are shown exactly as the backend reported them`() {
+    fun `the three counts are shown exactly as the backend reported them`() = runTest {
         given()
-        whenever(repository.askWithRag(any(), any(), any())).thenReturn(enhancedAnswer())
+        givenTheIndexAnswers(enhancedAnswer())
         val viewModel = createViewModel()
         viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
         viewModel.onMessageChanged("Как работает MCP в проекте?")
@@ -1408,7 +1412,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `the baseline answer carries no funnel because there was none`() {
+    fun `the baseline answer carries no funnel because there was none`() = runTest {
         given()
         whenever(repository.askWithRag(any(), any(), any())).thenReturn(
             AgentRagAnswer(
@@ -1432,9 +1436,9 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `a question the index cannot answer comes back with no sources and says so`() {
+    fun `a question the index cannot answer comes back with no sources and says so`() = runTest {
         given()
-        whenever(repository.askWithRag(any(), any(), any())).thenReturn(
+        givenTheIndexAnswers(
             AgentRagAnswer(
                 answer = "The information is not available in the indexed documents.",
                 ragEnabled = true,
@@ -1464,7 +1468,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `all three RAG modes can be used one after another on the same question`() {
+    fun `all three RAG modes can be used one after another on the same question`() = runTest {
         given()
         whenever(repository.askWithRag(any(), eq(RagMode.OFF), any())).thenReturn(
             AgentRagAnswer(answer = "from the model alone", ragEnabled = false, mode = RagMode.OFF)
@@ -1472,7 +1476,7 @@ class AiAgentViewModelTest {
         whenever(repository.askWithRag(any(), eq(RagMode.BASELINE), any())).thenReturn(
             AgentRagAnswer(answer = "baseline", ragEnabled = true, mode = RagMode.BASELINE, sources = listOf("README.md"))
         )
-        whenever(repository.askWithRag(any(), eq(RagMode.ENHANCED), any())).thenReturn(enhancedAnswer())
+        givenTheIndexAnswers(enhancedAnswer())
         val viewModel = createViewModel()
         val question = "How does the project work?"
 
@@ -1499,7 +1503,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `switching target does not send anything by itself`() {
+    fun `switching target does not send anything by itself`() = runTest {
         given()
         val viewModel = createViewModel()
 
@@ -1542,12 +1546,19 @@ class AiAgentViewModelTest {
     private fun lastAnswer(viewModel: AiAgentViewModel) =
         (viewModel.state.value.history as AgentHistoryUiState.Loaded).messages.last()
 
+    /** Since Day 28 the enhanced chip goes to /rag/chat with the chosen
+     * provider (askTheIndexWith), not to the one-shot endpoint, so that is
+     * where an enhanced answer has to come from. */
+    private suspend fun givenTheIndexAnswers(answer: AgentRagAnswer) {
+        whenever(repository.askTheIndexWith(any(), any())).thenReturn(answer to ragRun("gemini", "gemini-3.5-flash"))
+    }
+
     // --- citations and anti-hallucination (Day 24) -------------------------
 
     @Test
-    fun `a normal enhanced answer keeps its sources and its citations`() {
+    fun `a normal enhanced answer keeps its sources and its citations`() = runTest {
         given()
-        whenever(repository.askWithRag(any(), any(), any())).thenReturn(citedAnswer())
+        givenTheIndexAnswers(citedAnswer())
         val viewModel = createViewModel()
         viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
         viewModel.onMessageChanged("What happens when one MCP server cannot be reached?")
@@ -1563,9 +1574,9 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `a quote is kept next to the source it came from`() {
+    fun `a quote is kept next to the source it came from`() = runTest {
         given()
-        whenever(repository.askWithRag(any(), any(), any())).thenReturn(citedAnswer())
+        givenTheIndexAnswers(citedAnswer())
         val viewModel = createViewModel()
         viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
         viewModel.onMessageChanged("anything")
@@ -1580,9 +1591,9 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `weak context keeps the backend's own sentence and no evidence`() {
+    fun `weak context keeps the backend's own sentence and no evidence`() = runTest {
         given()
-        whenever(repository.askWithRag(any(), any(), any())).thenReturn(refusedAnswer())
+        givenTheIndexAnswers(refusedAnswer())
         val viewModel = createViewModel()
         viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
         viewModel.onMessageChanged("Which charting library does the billing dashboard use?")
@@ -1596,9 +1607,9 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `nothing is shown as a source or a citation when there was none`() {
+    fun `nothing is shown as a source or a citation when there was none`() = runTest {
         given()
-        whenever(repository.askWithRag(any(), any(), any())).thenReturn(refusedAnswer())
+        givenTheIndexAnswers(refusedAnswer())
         val viewModel = createViewModel()
         viewModel.onAskTargetChanged(AskTarget.RAG_ENHANCED)
         viewModel.onMessageChanged("anything")
@@ -1613,7 +1624,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `an older backend that sends only flat sources still names its documents`() {
+    fun `an older backend that sends only flat sources still names its documents`() = runTest {
         given()
         whenever(repository.askWithRag(any(), any(), any())).thenReturn(
             AgentRagAnswer(
@@ -1635,7 +1646,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `the agent answer still carries no RAG block at all`() {
+    fun `the agent answer still carries no RAG block at all`() = runTest {
         given()
         whenever(repository.chat(any(), any())).thenReturn(reply("обычный ответ"))
         val viewModel = createViewModel()
@@ -1712,7 +1723,7 @@ class AiAgentViewModelTest {
     // --- the mini chat (Day 25) --------------------------------------------
 
     @Test
-    fun `the chat chip sends the message to the chat endpoint`() {
+    fun `the chat chip sends the message to the chat endpoint`() = runTest {
         given()
         whenever(repository.askTheChat(any())).thenReturn(chatAnswer())
         val viewModel = createViewModel()
@@ -1727,7 +1738,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `a chat answer keeps its sources`() {
+    fun `a chat answer keeps its sources`() = runTest {
         given()
         whenever(repository.askTheChat(any())).thenReturn(chatAnswer())
         val viewModel = createViewModel()
@@ -1743,7 +1754,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `the task memory the backend reports is kept on the screen`() {
+    fun `the task memory the backend reports is kept on the screen`() = runTest {
         given()
         whenever(repository.askTheChat(any())).thenReturn(chatAnswer())
         val viewModel = createViewModel()
@@ -1760,7 +1771,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `a long conversation keeps the goal, the constraints and the decisions`() {
+    fun `a long conversation keeps the goal, the constraints and the decisions`() = runTest {
         given()
         val answers = (1..14).map { number ->
             chatAnswer(
@@ -1790,7 +1801,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `every chat answer carries its sources through a long conversation`() {
+    fun `every chat answer carries its sources through a long conversation`() = runTest {
         given()
         whenever(repository.askTheChat(any())).thenReturn(chatAnswer())
         val viewModel = createViewModel()
@@ -1808,7 +1819,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `an answer with nothing relevant still reports the funnel and no sources`() {
+    fun `an answer with nothing relevant still reports the funnel and no sources`() = runTest {
         given()
         whenever(repository.askTheChat(any())).thenReturn(
             AgentMiniChatAnswer(
@@ -1835,7 +1846,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `switching back to the agent leaves the chat path alone`() {
+    fun `switching back to the agent leaves the chat path alone`() = runTest {
         given()
         whenever(repository.chat(any(), any())).thenReturn(reply("обычный ответ"))
         val viewModel = createViewModel()
@@ -1894,7 +1905,7 @@ class AiAgentViewModelTest {
     // --- the document index readout (Day 21) -------------------------------
 
     @Test
-    fun `the index the backend reports is on the screen when it opens`() {
+    fun `the index the backend reports is on the screen when it opens`() = runTest {
         given()
         whenever(repository.getDocumentIndex()).thenReturn(
             AgentDocumentIndex(
@@ -1919,7 +1930,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `a backend without an index does not break the screen`() {
+    fun `a backend without an index does not break the screen`() = runTest {
         given()
         whenever(repository.getDocumentIndex()).thenThrow(RuntimeException("404"))
 
@@ -1933,7 +1944,7 @@ class AiAgentViewModelTest {
     // --- the MCP pipeline on the screen (Day 19) ---------------------------
 
     @Test
-    fun `the chain the backend ran arrives with the answer and is kept on the message`() {
+    fun `the chain the backend ran arrives with the answer and is kept on the message`() = runTest {
         given()
         val pipeline = AgentPipeline(
             query = "学習",
@@ -1967,7 +1978,7 @@ class AiAgentViewModelTest {
     }
 
     @Test
-    fun `an answer without a chain carries none`() {
+    fun `an answer without a chain carries none`() = runTest {
         given()
         whenever(repository.chat(any(), any())).thenReturn(reply("Просто ответ"))
         val viewModel = createViewModel()
